@@ -151,4 +151,48 @@ class Producto extends Model
     {
         return $this->getStockTotal() <= $this->stock_critico;
     }
+
+
+    //LOGICA REUTILIZABLE
+    public function obtenerStock(): int
+    {
+        return Stock::where('producto_id', $this->id)->sum('cantidad');
+    }
+
+    public function estaEnStockCritico(): bool
+    {
+        return $this->obtenerStock() <= $this->stock_critico;
+    }
+
+    public function estaEnStockCritico(): bool
+    {
+        return $this->obtenerStock() <= $this->stock_critico;
+    }
+
+    public function getPrecioVigente(?int $listaId = null): ?ProductoPrecio
+    {
+        $query = $this->precios()
+            ->whereDate('vigente_desde', '<=', now())
+            ->where(function ($q) {
+                $q->whereNull('vigente_hasta')
+                    ->orWhereDate('vigente_hasta', '>=', now());
+            });
+
+        if ($listaId) {
+            $query->where('lista_precio_id', $listaId);
+        }
+
+        return $query->latest('vigente_desde')->first();
+    }
+
+    /**
+     * Obtener próximo lote FEFO
+     */
+    public function obtenerProximoLoteFEFO(): ?Lote
+    {
+        return Lote::where('producto_id', $this->id)
+            ->where('estado', 'activo')
+            ->orderBy('fecha_vencimiento')
+            ->first();
+    }
 }

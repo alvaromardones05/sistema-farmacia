@@ -67,4 +67,23 @@ class Receta extends Model
         return $query->where('estado', 'vigente')
             ->whereDate('fecha_vencimiento', '>', now());
     }
+
+        /**
+     * Generar número de receta único
+     */
+    public static function generarNumeroReceta(): string
+    {
+        $ultimaReceta = static::latest('id')->first();
+        $numero = $ultimaReceta ? $ultimaReceta->id + 1 : 1;
+        return str_pad($numero, 10, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Verificar si receta es válida
+     */
+    public function esValida(): bool
+    {
+        return $this->estaVigente() && !$this->estaVencida();
+    }
+
 }

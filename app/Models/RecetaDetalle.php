@@ -36,4 +36,21 @@ class RecetaDetalle extends Model
     {
         return $this->hasMany(VentaDetalle::class, 'receta_detalle_id');
     }
+
+
+    //Marcar medicamento como dispensado
+     
+    public function dispensar(int $cantidad): void
+    {
+        $this->cantidad_dispensada += $cantidad;
+
+        if ($this->cantidad_dispensada >= $this->cantidad_prescrita) {
+            $this->estado = 'dispensado';
+        } else {
+            $this->estado = 'parcial';
+        }
+
+        $this->save();
+    }
+
 }

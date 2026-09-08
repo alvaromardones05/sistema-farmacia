@@ -66,4 +66,15 @@ class VentaDetalle extends Model
         $this->total = $this->subtotal + $this->impuesto;
         $this->save();
     }
+
+
+     //Calcular totales del detalle
+     
+    public function calcularTotales(): void
+    {
+        $this->subtotal = $this->precio_unitario * $this->cantidad * (1 - ($this->descuento_pct / 100));
+        $this->impuesto = $this->subtotal * 0.19;
+        $this->total = $this->subtotal + $this->impuesto;
+        $this->save();
+    }
 }

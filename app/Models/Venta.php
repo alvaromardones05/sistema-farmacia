@@ -116,4 +116,42 @@ class Venta extends Model
     {
         return $query->where('estado', 'anulada');
     }
+
+        /**
+     * Generar número de venta único
+     */
+    public static function generarNumeroVenta(): string
+    {
+        $ultimaVenta = static::latest('id')->first();
+        $numero = $ultimaVenta ? $ultimaVenta->id + 1 : 1;
+        return str_pad($numero, 8, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Calcular totales de la venta
+     */
+    public function calcularTotales(): void
+    {
+        $this->subtotal = $this->detalles()->sum('subtotal');
+        $this->impuesto = $this->detalles()->sum('impuesto');
+        $this->total = $this->detalles()->sum('total');
+        $this->save();
+    }
+
+    /**
+     * Monto pagado
+     */
+    public function montoPagado(): float
+    {
+        return $this->pagos()->sum('monto');
+    }
+
+    /**
+     * Saldo pendiente
+     */
+    public function saldoPendiente(): float
+    {
+        return $this->total - $this->montoPagado();
+    }
+
 }

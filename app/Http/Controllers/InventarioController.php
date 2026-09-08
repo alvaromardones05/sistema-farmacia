@@ -7,16 +7,12 @@ use App\Models\Lote;
 use App\Models\Stock;
 use App\Services\InventarioService;
 use Illuminate\Http\Request;
+use App\Models\UbicacionAlmacen;
+
 
 class InventarioController extends Controller
 {
-    protected InventarioService $inventarioService;
-
-    public function __construct(InventarioService $inventarioService)
-    {
-        $this->inventarioService = $inventarioService;
-    }
-
+    // ===================== LISTAR =====================
     public function index()
     {
         $productos = Producto::with('stock.ubicacion', 'stock.lote')
@@ -28,6 +24,7 @@ class InventarioController extends Controller
         ]);
     }
 
+    // ===================== TRANSFERIR STOCK =====================
     public function transferir(Request $request)
     {
         $validated = $request->validate([
@@ -41,17 +38,30 @@ class InventarioController extends Controller
 
         $producto = Producto::find($validated['producto_id']);
         $lote = Lote::find($validated['lote_id']);
-        $origenUbicacion = \App\Models\UbicacionAlmacen::find($validated['ubicacion_origen_id']);
-        $destinoUbicacion = \App\Models\UbicacionAlmacen::find($validated['ubicacion_destino_id']);
+        $origenUbicacion = UbicacionAlmacen::find($validated['ubicacion_origen_id']);
+        $destinoUbicacion = UbicacionAlmacen::find($validated['ubicacion_destino_id']);
 
         try {
-            $this->inventarioService->transferir(
+            // Salida del origen
+            Stock::registrarSalida(
                 $producto,
                 $lote,
                 $origenUbicacion,
+                $validated['cantidad'],
+                auth()->id(),
+                'transferencia',
+                null,
+                $validated['motivo']
+            );
+
+            // Entrada al destino
+            Stock::registrarEntrada(
+                $producto,
+                $lote,
                 $destinoUbicacion,
                 $validated['cantidad'],
                 auth()->id(),
+                null,
                 $validated['motivo']
             );
 
@@ -61,6 +71,7 @@ class InventarioController extends Controller
         }
     }
 
+    // ===================== AJUSTE DE INVENTARIO =====================
     public function ajuste(Request $request)
     {
         $validated = $request->validate([
@@ -73,23 +84,44 @@ class InventarioController extends Controller
 
         $producto = Producto::find($validated['producto_id']);
         $lote = Lote::find($validated['lote_id']);
-        $ubicacion = \App\Models\UbicacionAlmacen::find($validated['ubicacion_id']);
+        $ubicacion = UbicacionAlmacen::find($validated['ubicacion_id']);
 
-        $this->inventarioService->registrarAjuste(
-            $producto,
-            $lote,
-            $ubicacion,
-            $validated['diferencia'],
-            auth()->id(),
-            $validated['motivo']
-        );
+        try {
+            if ($validated['diferencia'] > 0) {
+                Stock::registrarEntrada(
+                    $producto,
+                    $lote,
+                    $ubicacion,
+                    $validated['diferencia'],
+                    auth()->id(),
+                    null,
+                    "Ajuste: {$validated['motivo']}"
+                );
+            } else {
+                Stock::registrarSalida(
+                    $producto,
+                    $lote,
+                    $ubicacion,
+                    abs($validated['diferencia']),
+                    auth()->id(),
+                    'ajuste',
+                    null,
+                    "Ajuste: {$validated['motivo']}"
+                );
+            }
 
-        return back()->with('success', 'Ajuste registrado');
+            return back()->with('success', 'Ajuste registrado');
+        } catch (\Exception $e) {
+            return back()->withError($e->getMessage());
+        }
     }
 
+    // ===================== STOCK POR UBICACIÓN =====================
     public function stockPorUbicacion(Producto $producto)
     {
-        $detalles = $this->inventarioService->obtenerStockPorUbicacion($producto);
+        $detalles = Stock::where('producto_id', $producto->id)
+            ->with('ubicacion', 'lote')
+            ->get();
 
         return response()->json(['data' => $detalles]);
     }

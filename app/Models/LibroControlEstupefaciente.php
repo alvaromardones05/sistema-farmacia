@@ -67,4 +67,105 @@ class LibroControlEstupefaciente extends Model
     {
         return $query->where('producto_id', $productoId);
     }
+
+
+        /**
+     * Registrar entrada en libro ISP
+     */
+    public static function registrarEntrada(
+        Producto $producto,
+        Lote $lote,
+        MovimientoStock $movimiento,
+        int $usuarioISPId,
+        ?string $observaciones = null
+    ): self
+    {
+        if (!$producto->es_controlado) {
+            throw new \Exception("Producto no es controlado");
+        }
+
+        $folio = CorrellativoLibro::obtenerYIncrementarFolio('entrada');
+
+        return static::create([
+            'producto_id' => $producto->id,
+            'lote_id' => $lote->id,
+            'movimiento_stock_id' => $movimiento->id,
+            'tipo_libro' => 'entrada',
+            'numero_folio' => $folio,
+            'fecha_registro' => now(),
+            'cantidad_movida' => $movimiento->cantidad_movida,
+            'usuario_isp_id' => $usuarioISPId,
+            'observaciones' => $observaciones,
+            'editable' => false,
+        ]);
+    }
+
+    /**
+     * Registrar salida en libro ISP
+     */
+    public static function registrarSalida(
+        Producto $producto,
+        Lote $lote,
+        MovimientoStock $movimiento,
+        int $usuarioISPId,
+        ?string $observaciones = null
+    ): self
+    {
+        if (!$producto->es_controlado) {
+            throw new \Exception("Producto no es controlado");
+        }
+
+        $folio = CorrellativoLibro::obtenerYIncrementarFolio('salida');
+
+        return static::create([
+            'producto_id' => $producto->id,
+            'lote_id' => $lote->id,
+            'movimiento_stock_id' => $movimiento->id,
+            'tipo_libro' => 'salida',
+            'numero_folio' => $folio,
+            'fecha_registro' => now(),
+            'cantidad_movida' => $movimiento->cantidad_movida,
+            'usuario_isp_id' => $usuarioISPId,
+            'observaciones' => $observaciones,
+            'editable' => false,
+        ]);
+    }
+
+    /**
+     * Obtener saldo de producto controlado
+     */
+    public static function obtenerSaldo(Producto $producto, ?Lote $lote = null): int
+    {
+        $query = static::where('producto_id', $producto->id);
+
+        if ($lote) {
+            $query->where('lote_id', $lote->id);
+        }
+
+        $entradas = $query->clone()->entradas()->sum('cantidad_movida');
+        $salidas = $query->clone()->salidas()->sum('cantidad_movida');
+
+        return $entradas - $salidas;
+    }
+
+    
+    //Verificar integridad de folios
+    
+    public static function verificarIntegridad(string $tipoLibro): bool
+    {
+        $registros = static::where('tipo_libro', $tipoLibro)
+            ->orderBy('numero_folio')
+            ->get();
+
+        $folioEsperado = 1;
+        foreach ($registros as $registro) {
+            if ($registro->numero_folio !== $folioEsperado) {
+                return false;
+            }
+            $folioEsperado++;
+        }
+
+        return true;
+    }
+
 }

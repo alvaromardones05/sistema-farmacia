@@ -16,7 +16,7 @@ class UsuariosSeeder extends Seeder
             'rut' => '11111111-1',
             'name' => 'Administrador',
             'apellidos' => 'Sistema',
-            'email' => 'admin@farmacia.local',
+            'email' => 'admin@farmacia',
             'telefono' => '912345678',
             'password' => Hash::make('admin123'),
             'activo' => true,
@@ -24,12 +24,12 @@ class UsuariosSeeder extends Seeder
         ]);
         $admin->assignRole('Administrador');
 
-        // Vendedor
+        // Bodeguero
         $bodeguero = User::create([
             'rut' => '22222222-2',
             'name' => 'Juan',
             'apellidos' => 'Palanca',
-            'email' => 'vendedor@farmacia.local',
+            'email' => 'bodeguero@farmacia',
             'telefono' => '987654321',
             'password' => Hash::make('bodeguero123'),
             'activo' => true,
@@ -41,7 +41,7 @@ class UsuariosSeeder extends Seeder
             'rut' => '33333333-3',
             'name' => 'María',
             'apellidos' => 'Técnica',
-            'email' => 'tecnica@farmacia.local',
+            'email' => 'tecnica@farmacia',
             'telefono' => '912345679',
             'password' => Hash::make('tecnica123'),
             'activo' => true,
@@ -54,7 +54,7 @@ class UsuariosSeeder extends Seeder
             'rut' => '44444444-4',
             'name' => 'Carlos',
             'apellidos' => 'Químico',
-            'email' => 'quimico@farmacia.local',
+            'email' => 'quimico@farmacia',
             'telefono' => '912345680',
             'password' => Hash::make('quimico123'),
             'activo' => true,

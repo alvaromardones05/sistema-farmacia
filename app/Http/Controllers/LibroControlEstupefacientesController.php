@@ -5,16 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\LibroControlEstupefaciente;
 use App\Services\ControlEstupefacientesService;
 use Illuminate\Http\Request;
+use App\Models\Producto;
 
 class LibroControlEstupefacientesController extends Controller
 {
-    protected ControlEstupefacientesService $controlService;
-
-    public function __construct(ControlEstupefacientesService $controlService)
-    {
-        $this->controlService = $controlService;
-    }
-
+    // ===================== LISTAR =====================
     public function index()
     {
         $libros = LibroControlEstupefaciente::with('producto', 'lote', 'usuarioISP')
@@ -26,23 +21,31 @@ class LibroControlEstupefacientesController extends Controller
         ]);
     }
 
+    // ===================== VER DETALLE =====================
     public function show(LibroControlEstupefaciente $libro)
     {
+        $libro->load('producto', 'lote', 'usuarioISP', 'movimientoStock');
+
         return view('libro-control.show', [
-            'libro' => $libro->load('producto', 'lote', 'usuarioISP', 'movimientoStock'),
+            'libro' => $libro,
         ]);
     }
 
+    // ===================== REPORTE POR PRODUCTO =====================
     public function reportePorProducto($productoId)
     {
-        $producto = \App\Models\Producto::findOrFail($productoId);
+        $producto = Producto::findOrFail($productoId);
 
         if (!$producto->es_controlado) {
             return back()->withError('Producto no es controlado');
         }
 
-        $historial = $this->controlService->obtenerHistorial($producto);
-        $saldo = $this->controlService->obtenerSaldo($producto);
+        $historial = LibroControlEstupefaciente::where('producto_id', $producto->id)
+            ->with('lote', 'usuarioISP')
+            ->orderBy('numero_folio')
+            ->get();
+
+        $saldo = LibroControlEstupefaciente::obtenerSaldo($producto);
 
         return view('libro-control.por-producto', [
             'producto' => $producto,
@@ -51,10 +54,11 @@ class LibroControlEstupefacientesController extends Controller
         ]);
     }
 
+    // ===================== VERIFICAR INTEGRIDAD =====================
     public function verificarIntegridad(Request $request)
     {
         $tipoLibro = $request->input('tipo', 'salida');
-        $esIntegro = $this->controlService->verificarIntegridad($tipoLibro);
+        $esIntegro = LibroControlEstupefaciente::verificarIntegridad($tipoLibro);
 
         return response()->json([
             'integro' => $esIntegro,
@@ -63,6 +67,7 @@ class LibroControlEstupefacientesController extends Controller
         ]);
     }
 
+    // ===================== EXPORTAR ISP =====================
     public function exportarISP(Request $request)
     {
         $validated = $request->validate([
@@ -70,10 +75,14 @@ class LibroControlEstupefacientesController extends Controller
             'fecha_fin' => 'required|date|after:fecha_inicio',
         ]);
 
-        $reporte = $this->controlService->generarReporteISP(
+        $reporte = LibroControlEstupefaciente::whereBetween('fecha_registro', [
             $validated['fecha_inicio'],
             $validated['fecha_fin']
-        );
+        ])
+        ->with('producto', 'lote', 'usuarioISP')
+        ->orderBy('numero_folio')
+        ->get()
+        ->groupBy('tipo_libro');
 
         return view('libro-control.reporte-isp', [
             'reporte' => $reporte,
