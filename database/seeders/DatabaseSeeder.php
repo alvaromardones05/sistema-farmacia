@@ -2,50 +2,122 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Crear permisos
+
+        //PERMISOS DEL SISTEMA
+
         $permisos = [
             'gestionar_usuarios',
-            'gestionar_stock',
-            'autorizar_libro_isp',
-            'validar_recetas',
-            'anular_ventas',
-            'ver_reportes_globales',
-            'cerrar_caja',
             'gestionar_productos',
             'gestionar_precios',
+            'gestionar_stock',
             'gestionar_convenios',
+            'gestionar_recetas',
+            'validar_recetas',
+            'autorizar_libro_isp',
+            'anular_ventas',
+            'cerrar_caja',
+            'ver_reportes_globales',
         ];
 
+        /*
+        |--------------------------------------------------------------------------
+        | CREAR PERMISOS
+        |--------------------------------------------------------------------------
+        | firstOrCreate evita duplicar permisos si ejecutamos el seeder
+        | más de una vez.
+        */
+
         foreach ($permisos as $permiso) {
-            Permission::create(['name' => $permiso, 'guard_name' => 'web']);
+            Permission::firstOrCreate([
+                'name' => $permiso,
+                'guard_name' => 'web',
+            ]);
         }
 
-        // Crear roles y asignar permisos
-        $adminRole = Role::create(['name' => 'Administrador', 'guard_name' => 'web']);
-        $adminRole->givePermissionTo($permisos);
+        /*
+        |--------------------------------------------------------------------------
+        | ADMINISTRADOR
+        |--------------------------------------------------------------------------
+        | Tiene todos los permisos del sistema.
+        | Esta configuración es provisional y podrá ajustarse posteriormente.
+        */
 
-        $bodegueroRole = Role::create(['name' => 'Bodeguero', 'guard_name' => 'web']);
-        $bodegueroRole->givePermissionTo(['gestionar_stock', 'validar_recetas', 'anular_ventas', 'cerrar_caja']);
+        $adminRole = Role::firstOrCreate([
+            'name' => 'Administrador',
+            'guard_name' => 'web',
+        ]);
 
-        $tecnicoRole = Role::create(['name' => 'Técnico Farmacéutico', 'guard_name' => 'web']);
-        $tecnicoRole->givePermissionTo(['gestionar_stock', 'validar_recetas', 'ver_reportes_globales']);
+        $adminRole->syncPermissions($permisos);
 
-        $quimicoRole = Role::create(['name' => 'Químico Farmacéutico', 'guard_name' => 'web']);
-        $quimicoRole->givePermissionTo(['autorizar_libro_isp', 'gestionar_productos', 'gestionar_precios', 'ver_reportes_globales']);
 
-        // Ejecutar otros seeders
+        //QUÍMICO FARMACÉUTICO
+
+        $quimicoRole = Role::firstOrCreate([
+            'name' => 'Químico Farmacéutico',
+            'guard_name' => 'web',
+        ]);
+
+        $quimicoRole->syncPermissions([
+            'gestionar_productos',
+            'gestionar_precios',
+            'gestionar_recetas',
+            'validar_recetas',
+            'autorizar_libro_isp',
+            'anular_ventas',
+            'ver_reportes_globales',
+        ]);
+
+
+        //TÉCNICO FARMACÉUTICO (VENDEDOR)
+
+        $tecnicoRole = Role::firstOrCreate([
+            'name' => 'Técnico Farmacéutico',
+            'guard_name' => 'web',
+        ]);
+
+        $tecnicoRole->syncPermissions([
+            'gestionar_recetas',
+            'validar_recetas',
+            'anular_ventas',
+            'cerrar_caja',
+             'gestionar_productos',
+            'gestionar_precios',
+            'gestionar_stock',
+            'gestionar_convenios',
+            
+        ]);
+
+
+        //BODEGUERO
+
+        $bodegueroRole = Role::firstOrCreate([
+            'name' => 'Bodeguero',
+            'guard_name' => 'web',
+        ]);
+
+        $bodegueroRole->syncPermissions([
+            'gestionar_stock',
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | SEEDERS DE DATOS
+        |--------------------------------------------------------------------------
+        | Los roles y permisos anteriores forman parte de la configuración
+        | del sistema.
+        */
+
         $this->call([
             UsuariosSeeder::class,
+
             UbicacionesSeeder::class,
             CategoriasSeeder::class,
             LaboratoriosSeeder::class,

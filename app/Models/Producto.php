@@ -13,9 +13,13 @@ class Producto extends Model
     protected $table = 'productos';
 
     protected $fillable = [
+        'nombre',
         'codigo_interno',
         'codigo_barra',
-        'nombre',
+        'descripcion',
+        'precio_base',
+        'dosis',
+        'es_controlado',
         'principio_activo',
         'forma_farmaceutica',
         'concentracion',
@@ -157,32 +161,6 @@ class Producto extends Model
     public function obtenerStock(): int
     {
         return Stock::where('producto_id', $this->id)->sum('cantidad');
-    }
-
-    public function estaEnStockCritico(): bool
-    {
-        return $this->obtenerStock() <= $this->stock_critico;
-    }
-
-    public function estaEnStockCritico(): bool
-    {
-        return $this->obtenerStock() <= $this->stock_critico;
-    }
-
-    public function getPrecioVigente(?int $listaId = null): ?ProductoPrecio
-    {
-        $query = $this->precios()
-            ->whereDate('vigente_desde', '<=', now())
-            ->where(function ($q) {
-                $q->whereNull('vigente_hasta')
-                    ->orWhereDate('vigente_hasta', '>=', now());
-            });
-
-        if ($listaId) {
-            $query->where('lista_precio_id', $listaId);
-        }
-
-        return $query->latest('vigente_desde')->first();
     }
 
     /**

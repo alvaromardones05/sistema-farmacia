@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Spatie\Permission\Models\Role;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,51 +19,88 @@ class UsuarioController extends Controller
 
     public function create(): View
     {
-        $roles = \Spatie\Permission\Models\Role::all();
-        return view('usuarios.crear', compact('roles'));
+        $roles = Role::where('guard_name', 'web')->orderBy('name')->get();
+        return view('usuarios.create', compact('roles'));
     }
 
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'rut' => 'required|string|max:12|unique:users,rut',
             'name' => 'required|string|max:255',
+            'apellidos' => 'required|string|max:100',
             'email' => 'required|email|unique:users',
-            'password' => 'required|min:8',
-            'roles' => 'required|array',
+            'telefono' => 'nullable|string|max:20',
+            'numero_registro_tecnico' => 'nullable|string|max:50',
+            'password' => 'required|string|min:8|confirmed',
+            'role' => 'required|exists:roles,name',
         ]);
 
         $user = User::create([
+            'rut' => $validated['rut'],
             'name' => $validated['name'],
+            'apellidos' => $validated['apellidos'],
             'email' => $validated['email'],
+            'telefono' => $validated['telefono'] ?? null,
+            'numero_registro_tecnico' => $validated['numero_registro_tecnico'] ?? null,
             'password' => bcrypt($validated['password']),
+            'activo' => $request->boolean('activo'),
         ]);
 
-        $user->syncRoles($validated['roles']);
+        $user->syncRoles([$validated['role']]);
 
         return redirect()->route('usuarios.index')->with('success', 'Usuario creado correctamente');
     }
 
-    public function edit(User $user): View
+    public function show(User $usuario)
     {
-        $roles = \Spatie\Permission\Models\Role::all();
-        return view('usuarios.editar', compact('user', 'roles'));
+        return view('usuarios.show', compact('usuario'));
     }
 
-    public function update(Request $request, User $user): RedirectResponse
+    public function edit(User $usuario): View
+    {
+        $roles = Role::where('guard_name', 'web')->orderBy('name')->get();
+        return view('usuarios.edit', compact('usuario', 'roles'));
+    }
+
+    public function update(Request $request, User $usuario): RedirectResponse
     {
         $validated = $request->validate([
+            'rut' => 'required|string|max:12|unique:users,rut,' . $usuario->id,
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
-            'roles' => 'required|array',
+            'apellidos' => 'required|string|max:100',
+            'email' => 'required|email|unique:users,email,' . $usuario->id,
+            'telefono' => 'nullable|string|max:20',
+            'numero_registro_tecnico' => 'nullable|string|max:50',
+            'password' => 'nullable|string|min:8|confirmed',
+            'role' => 'required|exists:roles,name',
         ]);
 
-        $user->update([
+        $usuario->update([
+            'rut' => $validated['rut'],
             'name' => $validated['name'],
+            'apellidos' => $validated['apellidos'],
             'email' => $validated['email'],
+            'telefono' => $validated['telefono'] ?? null,
+            'numero_registro_tecnico' => $validated['numero_registro_tecnico'] ?? null,
+            'activo' => $request->boolean('activo'),
         ]);
 
-        $user->syncRoles($validated['roles']);
+        if (!empty($validated['password'])) {
+            $usuario->update(['password' => $validated['password']]);
+        }
+
+        $usuario->syncRoles([$validated['role']]);
 
         return redirect()->route('usuarios.index')->with('success', 'Usuario actualizado correctamente');
+    }
+
+    public function destroy(User $usuario)
+    {
+        $usuario->delete();
+ 
+        return redirect()
+            ->route('usuarios.index')
+            ->with('success', 'Usuario destruido exitosamente.');
     }
 }

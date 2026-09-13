@@ -15,6 +15,7 @@ use App\Models\Producto;
 use App\Models\Lote;
 use App\Models\AperturaCaja;
 use App\Models\Stock;
+use App\Models\Convenio;
 
 class VentaController extends Controller
 {
@@ -34,6 +35,10 @@ class VentaController extends Controller
     public function create()
     {
         $pacientes = Paciente::activos()->get();
+        $convenios = Convenio::where('activo', true)->get();
+        $productos = Producto::activos()->with(['lotes' => function ($query) {
+            $query->where('estado', 'activo')->orderBy('fecha_vencimiento');
+        }])->get();
         $aperturaCaja = AperturaCaja::where('estado', 'abierta')->first();
 
         if (!$aperturaCaja) {
@@ -42,6 +47,8 @@ class VentaController extends Controller
 
         return view('ventas.create', [
             'pacientes' => $pacientes,
+            'convenios' => $convenios,
+            'productos' => $productos,
             'aperturaCaja' => $aperturaCaja,
         ]);
     }

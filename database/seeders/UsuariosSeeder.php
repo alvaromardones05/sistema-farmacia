@@ -23,43 +23,4 @@ class UsuariosSeeder extends Seeder
             'numero_registro_tecnico' => null,
         ]);
         $admin->assignRole('Administrador');
-
-        // Bodeguero
-        $bodeguero = User::create([
-            'rut' => '22222222-2',
-            'name' => 'Juan',
-            'apellidos' => 'Palanca',
-            'email' => 'bodeguero@farmacia',
-            'telefono' => '987654321',
-            'password' => Hash::make('bodeguero123'),
-            'activo' => true,
-        ]);
-        $bodeguero->assignRole('Bodeguero');
-
-        // Técnico Farmacéutico
-        $tecnico = User::create([
-            'rut' => '33333333-3',
-            'name' => 'María',
-            'apellidos' => 'Técnica',
-            'email' => 'tecnica@farmacia',
-            'telefono' => '912345679',
-            'password' => Hash::make('tecnica123'),
-            'activo' => true,
-            'numero_registro_tecnico' => 'TF-123456',
-        ]);
-        $tecnico->assignRole('Técnico Farmacéutico');
-
-        // Químico Farmacéutico
-        $quimico = User::create([
-            'rut' => '44444444-4',
-            'name' => 'Carlos',
-            'apellidos' => 'Químico',
-            'email' => 'quimico@farmacia',
-            'telefono' => '912345680',
-            'password' => Hash::make('quimico123'),
-            'activo' => true,
-            'numero_registro_tecnico' => 'QF-654321',
-        ]);
-        $quimico->assignRole('Químico Farmacéutico');
-    }
-}
+}}

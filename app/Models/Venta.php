@@ -88,13 +88,7 @@ class Venta extends Model
         $this->detalles()->save($detalle);
     }
 
-    public function calcularTotales(): void
-    {
-        $this->subtotal = $this->detalles()->sum('subtotal');
-        $this->impuesto = $this->detalles()->sum('impuesto');
-        $this->total = $this->detalles()->sum('total');
-        $this->save();
-    }
+    
 
     public function montoPagado(): float
     {
@@ -138,20 +132,6 @@ class Venta extends Model
         $this->save();
     }
 
-    /**
-     * Monto pagado
-     */
-    public function montoPagado(): float
-    {
-        return $this->pagos()->sum('monto');
-    }
 
-    /**
-     * Saldo pendiente
-     */
-    public function saldoPendiente(): float
-    {
-        return $this->total - $this->montoPagado();
-    }
 
 }
