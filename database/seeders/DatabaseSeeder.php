@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             'gestionar_productos',
             'gestionar_precios',
             'gestionar_stock',
+            'ver_stock',
             'gestionar_convenios',
             'gestionar_recetas',
             'validar_recetas',
@@ -73,6 +74,7 @@ class DatabaseSeeder extends Seeder
             'autorizar_libro_isp',
             'anular_ventas',
             'ver_reportes_globales',
+            'ver_stock',
         ]);
 
 
@@ -88,9 +90,10 @@ class DatabaseSeeder extends Seeder
             'validar_recetas',
             'anular_ventas',
             'cerrar_caja',
-             'gestionar_productos',
+            'gestionar_productos',
             'gestionar_precios',
             'gestionar_stock',
+            'ver_stock',
             'gestionar_convenios',
             
         ]);
@@ -108,7 +111,6 @@ class DatabaseSeeder extends Seeder
         ]);
 
         /*
-        |--------------------------------------------------------------------------
         | SEEDERS DE DATOS
         |--------------------------------------------------------------------------
         | Los roles y permisos anteriores forman parte de la configuración

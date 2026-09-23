@@ -16,7 +16,7 @@ class UsuariosSeeder extends Seeder
             'rut' => '11111111-1',
             'name' => 'Administrador',
             'apellidos' => 'Sistema',
-            'email' => 'admin@farmacia',
+            'email' => 'admin@email.cl',
             'telefono' => '912345678',
             'password' => Hash::make('admin123'),
             'activo' => true,

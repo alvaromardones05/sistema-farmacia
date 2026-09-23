@@ -13,61 +13,122 @@ class DashboardController extends Controller
     public function index(): View
     {
         $usuario = auth()->user();
+
+        // =====================================================
+        // ROLES
+        // =====================================================
+
         $esAdministrador = $usuario->hasRole('Administrador');
-        $puedeVerProductos = $esAdministrador || $usuario->hasAnyRole([
+
+        $puedeVerInventario = $usuario->hasAnyRole([
             'Químico Farmacéutico',
-        ]);
-        $puedeVerVentas = $esAdministrador || $usuario->hasAnyRole([
             'Técnico Farmacéutico',
-            'Químico Farmacéutico',
-        ]);
-        $puedeVerLotes = $esAdministrador || $usuario->hasAnyRole([
-            'Químico Farmacéutico',
-            'Bodeguero',
         ]);
 
-        $productos = $puedeVerProductos
-            ? Producto::with('stock')->latest()->limit(8)->get()
+        // =====================================================
+        // PRODUCTOS
+        // =====================================================
+
+        $productos = $puedeVerInventario
+            ? Producto::with('stock')
+                ->latest()
+                ->limit(8)
+                ->get()
             : collect();
 
-        $ventas = $puedeVerVentas
-            ? Venta::with('usuario')->latest('fecha_venta')->limit(8)->get()
+        // =====================================================
+        // LOTES
+        // =====================================================
+
+        $lotes = $puedeVerInventario
+            ? Lote::with(['producto', 'stock'])
+                ->latest('fecha_vencimiento')
+                ->limit(8)
+                ->get()
             : collect();
 
-        $lotes = $puedeVerLotes
-            ? Lote::with(['producto', 'stock'])->latest('fecha_vencimiento')->limit(8)->get()
+        // =====================================================
+        // VENTAS
+        // =====================================================
+
+        $ventas = $puedeVerInventario
+            ? Venta::with('usuario')
+                ->latest('fecha_venta')
+                ->limit(8)
+                ->get()
             : collect();
+
+        // =====================================================
+        // USUARIOS
+        // =====================================================
 
         $usuarios = $esAdministrador
-            ? User::with('roles')->latest()->limit(8)->get()
+            ? User::with('roles')
+                ->latest()
+                ->limit(8)
+                ->get()
             : collect();
 
+        // =====================================================
+        // MÉTRICAS
+        // =====================================================
+
         $metricas = [
-            'productos_activos' => $puedeVerProductos ? Producto::activos()->count() : null,
-            'stock_critico' => $puedeVerProductos
-                ? Producto::activos()->get()->filter(fn (Producto $producto) => $producto->estaEnStockCritico())->count()
+            'productos_activos' => $puedeVerInventario
+                ? Producto::activos()->count()
                 : null,
-            'lotes_por_vencer' => $puedeVerLotes
-                ? Lote::whereBetween('fecha_vencimiento', [today(), today()->copy()->addDays(30)])->count()
+
+            'stock_critico' => $puedeVerInventario
+                ? Producto::activos()
+                    ->get()
+                    ->filter(
+                        fn (Producto $producto) =>
+                            $producto->estaEnStockCritico()
+                    )
+                    ->count()
                 : null,
-            'ventas_dia' => $puedeVerVentas
-                ? Venta::whereDate('fecha_venta', today())->completadas()->sum('total')
+
+            'lotes_por_vencer' => $puedeVerInventario
+                ? Lote::whereBetween(
+                    'fecha_vencimiento',
+                    [
+                        today(),
+                        today()->copy()->addDays(30)
+                    ]
+                )->count()
                 : null,
-            'ventas_mes' => $puedeVerVentas
-                ? Venta::whereBetween('fecha_venta', [now()->startOfMonth(), now()->endOfMonth()])->completadas()->sum('total')
+
+            'ventas_dia' => $puedeVerInventario
+                ? Venta::whereDate('fecha_venta', today())
+                    ->completadas()
+                    ->sum('total')
+                : null,
+
+            'ventas_mes' => $puedeVerInventario
+                ? Venta::whereBetween(
+                    'fecha_venta',
+                    [
+                        now()->startOfMonth(),
+                        now()->endOfMonth()
+                    ]
+                )
+                    ->completadas()
+                    ->sum('total')
                 : null,
         ];
 
+        // =====================================================
+        // DASHBOARD
+        // =====================================================
+
         return view('dashboard', compact(
             'productos',
-            'ventas',
             'lotes',
+            'ventas',
             'usuarios',
-            'puedeVerProductos',
-            'puedeVerVentas',
-            'puedeVerLotes',
+            'puedeVerInventario',
             'esAdministrador',
             'metricas'
         ));
     }
-}
+}   

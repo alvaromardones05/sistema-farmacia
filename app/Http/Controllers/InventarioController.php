@@ -8,22 +8,103 @@ use App\Models\Stock;
 use App\Models\UbicacionAlmacen;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\DescuadreStockControlado;
+use App\Models\MovimientoStock;
+
 
 class InventarioController extends Controller
 {
     // ===================== LISTAR =====================
 
-    public function index()
+                // ===================== LISTAR (tabla plana + filtros + resumen) =====================
+
+    public function index(Request $request)
     {
-        // Obtiene los productos activos junto con su stock,
-        // ubicación y lote asociado.
-        $productos = Producto::with('stock.ubicacion', 'stock.lote')
-            ->activos()
-            ->paginate(15);
+        $query = Stock::with(['producto', 'lote', 'ubicacion'])
+            ->whereHas('producto', fn($q) => $q->where('activo', true));
+
+        $query->when($request->filled('producto_id'), function ($q) use ($request) {
+            $q->where('producto_id', $request->producto_id);
+        });
+
+        $query->when($request->filled('ubicacion_id'), function ($q) use ($request) {
+            $q->where('ubicacion_id', $request->ubicacion_id);
+        });
+
+        $query->when($request->filled('buscar'), function ($q) use ($request) {
+            $termino = $request->buscar;
+            $q->where(function ($sub) use ($termino) {
+                $sub->whereHas('producto', function ($p) use ($termino) {
+                        $p->where('nombre', 'like', "%{$termino}%")
+                          ->orWhere('codigo_interno', 'like', "%{$termino}%");
+                    })
+                    ->orWhereHas('lote', function ($l) use ($termino) {
+                        $l->where('numero_lote', 'like', "%{$termino}%");
+                    });
+            });
+        });
+
+        $stock = $query->orderBy('producto_id')->orderBy('id')
+            ->paginate(15)
+            ->withQueryString();
+
+        // Dataset COMPLETO (sin paginar, sin filtros) para poblar los
+        // selects en cascada de los modales de Traslado/Ajuste. Es una
+        // consulta aparte de la tabla paginada a propósito: los modales
+        // deben poder operar sobre CUALQUIER stock, no solo el filtrado.
+        $stockCompleto = Stock::with(['producto:id,nombre,es_controlado', 'lote:id,numero_lote', 'ubicacion:id,nombre'])
+            ->whereHas('producto', fn($q) => $q->where('activo', true))
+            ->get()
+            ->map(fn($s) => [
+                'producto_id' => $s->producto_id,
+                'producto_nombre' => $s->producto?->nombre,
+                'es_controlado' => (bool) $s->producto?->es_controlado,
+                'lote_id' => $s->lote_id,
+                'lote_numero' => $s->lote?->numero_lote,
+                'ubicacion_id' => $s->ubicacion_id,
+                'ubicacion_nombre' => $s->ubicacion?->nombre,
+                'cantidad' => $s->cantidad,
+            ]);
 
         return view('inventario.index', [
-            'productos' => $productos,
+            'stock' => $stock,
+            'stockCompleto' => $stockCompleto,
+            'productos' => Producto::activos()->orderBy('nombre')->get(),
+            'ubicaciones' => UbicacionAlmacen::where('activo', true)->get(),
+            'stockTotalUnidades' => Stock::whereHas('producto', fn($q) => $q->where('activo', true))->sum('cantidad'),
+            'stockCriticoCount' => $this->contarProductosStockCritico(),
+            'porVencerCount' => $this->contarLotesPorVencer(),
+            'vencidosCount' => $this->contarLotesVencidos(),
         ]);
+    }
+
+    // ===================== HELPERS PRIVADOS PARA LAS TARJETAS =====================
+
+    private function contarProductosStockCritico(): int
+    {
+        return Producto::activos()
+            ->withSum('stock as stock_total', 'cantidad')
+            ->get()
+            ->filter(fn($p) => (int) $p->stock_total <= $p->stock_critico)
+            ->count();
+    }
+
+    private function contarLotesPorVencer(int $dias = 30): int
+    {
+        return Lote::where('estado', 'activo')
+            ->withSum('stock as stock_total', 'cantidad')
+            ->get()
+            ->filter(fn($l) => (int) $l->stock_total > 0
+                && $l->fecha_vencimiento->between(now(), now()->addDays($dias)))
+            ->count();
+    }
+
+    private function contarLotesVencidos(): int
+    {
+        return Lote::withSum('stock as stock_total', 'cantidad')
+            ->get()
+            ->filter(fn($l) => (int) $l->stock_total > 0 && $l->fecha_vencimiento->isPast())
+            ->count();
     }
 
     // ===================== TRANSFERIR STOCK =====================
@@ -52,39 +133,50 @@ class InventarioController extends Controller
         if (!$producto || !$lote || !$origenUbicacion || !$destinoUbicacion) {
             return back()
                 ->withInput()
-                ->withError('No fue posible encontrar los datos de la transferencia.');
+                ->with('error', 'No fue posible encontrar los datos de la transferencia.');
         }
 
         // Verificamos que el lote corresponda al producto seleccionado.
         if ((int) $lote->producto_id !== (int) $producto->id) {
             return back()
                 ->withInput()
-                ->withError('El lote seleccionado no corresponde al producto.');
+                ->with('error', 'El lote seleccionado no corresponde al producto.');
         }
 
         // Verificamos que producto, lote y ubicaciones estén activos.
         if (isset($producto->activo) && !$producto->activo) {
             return back()
                 ->withInput()
-                ->withError('El producto seleccionado está inactivo.');
+                ->with('error', 'El producto seleccionado está inactivo.');
         }
 
-        if (isset($lote->activo) && !$lote->activo) {
+        if ($lote->estado !== 'activo') {
             return back()
                 ->withInput()
-                ->withError('El lote seleccionado está inactivo.');
+                ->with('error', 'El lote seleccionado no está activo.');
         }
 
         if (isset($origenUbicacion->activo) && !$origenUbicacion->activo) {
             return back()
                 ->withInput()
-                ->withError('La ubicación de origen está inactiva.');
+                ->with('error', 'La ubicación de origen está inactiva.');
         }
 
         if (isset($destinoUbicacion->activo) && !$destinoUbicacion->activo) {
             return back()
                 ->withInput()
-                ->withError('La ubicación de destino está inactiva.');
+                ->with('error', 'La ubicación de destino está inactiva.');
+        }
+
+        $stockOrigen = Stock::where('producto_id', $producto->id)
+            ->where('lote_id', $lote->id)
+            ->where('ubicacion_id', $origenUbicacion->id)
+            ->first();
+
+        if (!$stockOrigen || $stockOrigen->cantidad < $validated['cantidad']) {
+            return back()
+                ->withInput()
+                ->with('error', 'No hay suficiente stock disponible en la ubicación de origen.');
         }
 
         try {
@@ -134,15 +226,14 @@ class InventarioController extends Controller
             // Si ocurre cualquier error, no se confirma la operación.
             return back()
                 ->withInput()
-                ->withError($e->getMessage());
+                ->with('error', $e->getMessage());
         }
     }
 
-    // ===================== AJUSTE DE INVENTARIO =====================
+        // ===================== AJUSTE DE INVENTARIO =====================
 
     public function ajuste(Request $request)
     {
-        // Validamos los datos del ajuste.
         $validated = $request->validate([
             'producto_id' => 'required|exists:productos,id',
             'lote_id' => 'required|exists:lotes,id',
@@ -151,56 +242,85 @@ class InventarioController extends Controller
             'motivo' => 'required|string|max:255',
         ]);
 
-        // Buscamos las entidades relacionadas.
         $producto = Producto::find($validated['producto_id']);
         $lote = Lote::find($validated['lote_id']);
         $ubicacion = UbicacionAlmacen::find($validated['ubicacion_id']);
 
-        // Verificamos que los registros existan.
         if (!$producto || !$lote || !$ubicacion) {
             return back()
                 ->withInput()
-                ->withError('No fue posible encontrar los datos del ajuste.');
+                ->with('error', 'No fue posible encontrar los datos del ajuste.');
         }
 
-        // Verificamos que el lote corresponda al producto.
         if ((int) $lote->producto_id !== (int) $producto->id) {
             return back()
                 ->withInput()
-                ->withError('El lote seleccionado no corresponde al producto.');
+                ->with('error', 'El lote seleccionado no corresponde al producto.');
         }
 
-        // Verificamos que producto, lote y ubicación estén activos.
         if (isset($producto->activo) && !$producto->activo) {
             return back()
                 ->withInput()
-                ->withError('El producto seleccionado está inactivo.');
+                ->with('error', 'El producto seleccionado está inactivo.');
         }
 
-        if (isset($lote->activo) && !$lote->activo) {
+        if ($lote->estado !== 'activo') {
             return back()
                 ->withInput()
-                ->withError('El lote seleccionado está inactivo.');
+            ->with('error', 'El lote seleccionado no está activo.');
         }
 
         if (isset($ubicacion->activo) && !$ubicacion->activo) {
             return back()
                 ->withInput()
-                ->withError('La ubicación seleccionada está inactiva.');
+                ->with('error', 'La ubicación seleccionada está inactiva.');
         }
 
+        // =========================================================
+        // PRODUCTO CONTROLADO (ISP): no se toca stock directamente.
+        // Se registra un descuadre para que el Químico Farmacéutico
+        // investigue y apruebe antes de alterar el libro oficial.
+        // =========================================================
+        if ($producto->es_controlado) {
+            try {
+                DB::transaction(function () use ($producto, $lote, $ubicacion, $validated) {
+                    $cantidadEsperada = Stock::where('producto_id', $producto->id)
+                        ->where('lote_id', $lote->id)
+                        ->where('ubicacion_id', $ubicacion->id)
+                        ->sum('cantidad');
+
+                    $cantidadContada = $cantidadEsperada + $validated['diferencia'];
+
+                    DescuadreStockControlado::create([
+                        'producto_id' => $producto->id,
+                        'lote_id' => $lote->id,
+                        'cantidad_esperada' => $cantidadEsperada,
+                        'cantidad_contada' => $cantidadContada,
+                        'diferencia' => $validated['diferencia'],
+                        'fecha_inventario' => now(),
+                        'usuario_id' => auth()->id(),
+                        'estado' => 'registrado',
+                        'explicacion' => $validated['motivo'],
+                    ]);
+                });
+
+                return back()->with(
+                    'success',
+                    'Producto controlado: el descuadre fue registrado para revisión del Químico Farmacéutico. El stock no se modificó todavía.'
+                );
+            } catch (\Throwable $e) {
+                return back()
+                    ->withInput()
+                    ->with('error', $e->getMessage());
+            }
+        }
+
+        // =========================================================
+        // PRODUCTO NO CONTROLADO: ajuste directo (comportamiento
+        // original, sin cambios).
+        // =========================================================
         try {
-            /*
-             * El ajuste también se realiza dentro de una transacción
-             * para mantener sincronizados el stock y su movimiento.
-             */
-            DB::transaction(function () use (
-                $producto,
-                $lote,
-                $ubicacion,
-                $validated
-            ) {
-                // Una diferencia positiva representa una entrada.
+            DB::transaction(function () use ($producto, $lote, $ubicacion, $validated) {
                 if ($validated['diferencia'] > 0) {
                     Stock::registrarEntrada(
                         $producto,
@@ -212,7 +332,6 @@ class InventarioController extends Controller
                         "Ajuste: {$validated['motivo']}"
                     );
                 } else {
-                    // Una diferencia negativa representa una salida.
                     Stock::registrarSalida(
                         $producto,
                         $lote,
@@ -231,10 +350,9 @@ class InventarioController extends Controller
                 'Ajuste registrado correctamente.'
             );
         } catch (\Throwable $e) {
-            // Si ocurre un error, la transacción se revierte.
             return back()
                 ->withInput()
-                ->withError($e->getMessage());
+                ->with('error', $e->getMessage());
         }
     }
 
@@ -250,5 +368,156 @@ class InventarioController extends Controller
         return response()->json([
             'data' => $detalles,
         ]);
+    }
+
+        // ===================== PRÓXIMOS A VENCER (FEFO) =====================
+
+    public function proximosAVencer(Request $request)
+    {
+        // Ventana de días configurable desde el filtro del formulario,
+        // 60 días por defecto si no se especifica nada.
+        $dias = (int) $request->get('dias', 60);
+
+        $lotes = Lote::with('producto')
+            ->withSum('stock as stock_total', 'cantidad')
+            // Orden FEFO real: el que vence primero aparece primero.
+            ->orderBy('fecha_vencimiento')
+            ->get()
+            ->filter(function ($lote) use ($dias) {
+                // Solo lotes con stock real, y dentro de la ventana elegida
+                // (incluye vencidos: fecha_vencimiento <= hoy también cae aquí).
+                return (int) $lote->stock_total > 0
+                    && $lote->fecha_vencimiento->lte(now()->addDays($dias));
+            });
+
+        return view('inventario.proximos-vencer', compact('lotes', 'dias'));
+    }
+
+        // ===================== ALERTAS DE STOCK =====================
+
+    public function alertas()
+    {
+        // Productos con stock bajo o crítico (calculado en vivo)
+        $productos = Producto::activos()
+            ->withSum('stock as stock_total', 'cantidad')
+            ->get();
+
+        $stockCritico = $productos->filter(
+            fn($p) => (int) $p->stock_total <= $p->stock_critico
+        );
+
+        $stockBajo = $productos->filter(
+            fn($p) => (int) $p->stock_total > $p->stock_critico
+                && (int) $p->stock_total <= $p->stock_minimo
+        );
+
+        // Lotes activos con stock real > 0 (calculado en vivo)
+        $lotesConStock = Lote::where('estado', 'activo')
+            ->with('producto')
+            ->withSum('stock as stock_total', 'cantidad')
+            ->get()
+            ->filter(fn($l) => (int) $l->stock_total > 0);
+
+        $porVencer = $lotesConStock->filter(
+            fn($l) => $l->fecha_vencimiento->between(now(), now()->addDays(30))
+        );
+
+        $vencidos = $lotesConStock->filter(
+            fn($l) => $l->fecha_vencimiento->isPast()
+        );
+
+        return view('inventario.alertas', compact(
+            'stockCritico',
+            'stockBajo',
+            'porVencer',
+            'vencidos'
+        ));
+    }
+
+
+        // ===================== HISTORIAL DE MOVIMIENTOS (KARDEX) =====================
+
+    public function historial(Request $request)
+    {
+        $query = MovimientoStock::with(['producto', 'lote', 'ubicacion', 'usuario'])
+            ->latest(); // más reciente primero
+
+        // Cada filtro se aplica SOLO si el usuario lo llenó (when() evita
+        // condiciones vacías del tipo where('producto_id', null)).
+        $query->when($request->filled('producto_id'), function ($q) use ($request) {
+            $q->where('producto_id', $request->producto_id);
+        });
+
+        $query->when($request->filled('ubicacion_id'), function ($q) use ($request) {
+            $q->where('ubicacion_id', $request->ubicacion_id);
+        });
+
+        $query->when($request->filled('tipo_movimiento'), function ($q) use ($request) {
+            $q->where('tipo_movimiento', $request->tipo_movimiento);
+        });
+
+        $query->when($request->filled('fecha_desde'), function ($q) use ($request) {
+            $q->whereDate('created_at', '>=', $request->fecha_desde);
+        });
+
+        $query->when($request->filled('fecha_hasta'), function ($q) use ($request) {
+            $q->whereDate('created_at', '<=', $request->fecha_hasta);
+        });
+
+        // withQueryString() mantiene los filtros activos al cambiar de página.
+        $movimientos = $query->paginate(20)->withQueryString();
+
+        $productos = Producto::activos()->orderBy('nombre')->get();
+        $ubicaciones = UbicacionAlmacen::where('activo', true)->get();
+
+        return view('inventario.historial', compact('movimientos', 'productos', 'ubicaciones'));
+    }
+
+    public function mostrarTransferir()
+    {
+        $productos = Producto::activos()
+            ->orderBy('nombre')
+            ->get();
+
+        $lotes = Lote::where('estado', 'activo')
+            ->whereHas('producto', function ($query) {
+                $query->where('activo', true);
+            })
+            ->orderBy('numero_lote')
+            ->get();
+
+        $ubicaciones = UbicacionAlmacen::where('activo', true)
+            ->orderBy('nombre')
+            ->get();
+
+        return view('inventario.transferir', compact(
+            'productos',
+            'lotes',
+            'ubicaciones'
+        ));
+    }
+
+    public function mostrarAjustar()
+    {
+        $productos = Producto::activos()
+            ->orderBy('nombre')
+            ->get();
+
+        $lotes = Lote::where('estado', 'activo')
+            ->whereHas('producto', function ($query) {
+                $query->where('activo', true);
+            })
+            ->orderBy('numero_lote')
+            ->get();
+
+        $ubicaciones = UbicacionAlmacen::where('activo', true)
+            ->orderBy('nombre')
+            ->get();
+
+        return view('inventario.ajustar', compact(
+            'productos',
+            'lotes',
+            'ubicaciones'
+        ));
     }
 }

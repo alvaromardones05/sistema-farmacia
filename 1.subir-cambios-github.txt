@@ -1,0 +1,35 @@
+1. Preparar los archivos modificados
+Agrega los archivos que cambiaste al área de preparación (staging):
+
+                    git add .
+
+2. Confirmar el avance con un mensaje
+Registra el avance de forma local explicando brevemente qué añadiste o modificaste:
+
+                    git commit -m "Describe brevemente tu avance"
+
+
+3. Enviar los cambios a GitHub
+Sube los cambios locales al repositorio remoto en tu rama principal (normalmente main o master):
+
+                    git push origin main
+
+
+
+===Cambios de colaborador===
+1. Asegúrate de no tener cambios pendientes sin guardar
+Antes de descargar lo nuevo, comprueba el estado de tu proyecto:
+
+        git status
+
+2. Descargar y combinar los cambios
+Trae los commits que subió tu colaborador desde GitHub a tu rama local (por defecto main o master):
+
+        git pull origin main
+
+
+Si tu colaborador trabajó en una rama diferente:
+Si subió su avance a una rama propia (por ejemplo, feature-login), descárgala así:
+
+        git fetch origin
+        git checkout feature-login
