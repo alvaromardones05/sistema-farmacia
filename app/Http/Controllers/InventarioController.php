@@ -14,9 +14,7 @@ use App\Models\MovimientoStock;
 
 class InventarioController extends Controller
 {
-    // ===================== LISTAR =====================
-
-                // ===================== LISTAR (tabla plana + filtros + resumen) =====================
+// ===================== LISTAR (tabla plana + filtros + resumen) =====================
 
     public function index(Request $request)
     {
@@ -474,28 +472,28 @@ class InventarioController extends Controller
     }
 
     public function mostrarTransferir()
-    {
-        $productos = Producto::activos()
-            ->orderBy('nombre')
-            ->get();
+{
+    $productos = Producto::activos()
+        ->orderBy('nombre')
+        ->get();
 
-        $lotes = Lote::where('estado', 'activo')
-            ->whereHas('producto', function ($query) {
-                $query->where('activo', true);
-            })
-            ->orderBy('numero_lote')
-            ->get();
+    $lotes = Lote::where('estado', 'activo')
+        ->orderBy('numero_lote')
+        ->get();
 
-        $ubicaciones = UbicacionAlmacen::where('activo', true)
-            ->orderBy('nombre')
-            ->get();
+    $ubicaciones = UbicacionAlmacen::where('activo', true)
+        ->orderBy('nombre')
+        ->get();
 
-        return view('inventario.transferir', compact(
-            'productos',
-            'lotes',
-            'ubicaciones'
-        ));
-    }
+    $stock = Stock::where('cantidad', '>', 0)->get();
+
+    return view('inventario.transferir', compact(
+        'productos',
+        'lotes',
+        'ubicaciones',
+        'stock'
+    ));
+}
 
     public function mostrarAjustar()
     {

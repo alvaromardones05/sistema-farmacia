@@ -33,31 +33,68 @@
                         <th>Acciones</th>
                     </tr>
                 </thead>
-                <tbody>
-                    @foreach ($lotes as $lote)
-                        <tr>
-                            <td>{{ $lote->id }}</td>
-                            <td>{{ $lote->producto->nombre ?? 'N/A' }}</td>
-                            <td>{{ $lote->numero_lote }}</td>
-                            <td>{{ $lote->fecha_vencimiento->format('d/m/Y') }}</td>
-                            <td>{{ $lote->cantidad }}</td>
-                            <td>{{ $lote->ubicacion_fisica ?? 'N/A' }}</td>
-                            <td>
-                                <span class="badge {{ $lote->disponible ? 'badge-success' : 'badge-danger' }}">
-                                    {{ $lote->disponible ? 'Disponible' : 'Agotado' }}
-                                </span>
-                            </td>
-                            <td class="actions-cell">
-                                <a href="{{ route('lotes.edit', $lote->id) }}" class="btn-sm btn-warning">Editar</a>
-                                <form action="{{ route('lotes.destroy', $lote->id) }}" method="POST" class="form-inline">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn-sm btn-danger" onclick="return confirm('¿Está seguro?')">Eliminar</button>
-                                </form>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
+            <tbody>
+                @forelse ($lotes as $lote)
+                    <tr>
+                        <td>{{ $lote->producto->nombre ?? 'N/A' }}</td>
+
+                        <td>{{ $lote->numero_lote }}</td>
+
+                        <td>{{ $lote->fecha_vencimiento->format('d/m/Y') }}</td>
+
+                        <td>{{ $lote->stockTotal() }}</td>
+
+                        <td>
+                            @forelse ($lote->stock as $stock)
+                                <div>{{ $stock->ubicacion->nombre ?? 'Sin ubicación' }}</div>
+                            @empty
+                                <span class="text-muted">Sin ubicación</span>
+                            @endforelse
+                        </td>
+
+                        <td>
+                            @php
+                                $badge = match($lote->estado) {
+                                    'activo' => 'success',
+                                    'agotado' => 'secondary',
+                                    'vencido' => 'danger',
+                                    default => 'secondary',
+                                };
+                            @endphp
+
+                            <span class="badge text-bg-{{ $badge }}">
+                                {{ ucfirst($lote->estado) }}
+                            </span>
+                        </td>
+
+                        <td class="actions-cell">
+                            <a href="{{ route('lotes.edit', $lote) }}"
+                            class="btn btn-sm btn-outline-primary">
+                                Editar
+                            </a>
+
+                            <form action="{{ route('lotes.destroy', $lote) }}"
+                                method="POST"
+                                class="d-inline">
+                                @csrf
+                                @method('DELETE')
+
+                                <button type="submit"
+                                        class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('¿Está seguro?')">
+                                    Eliminar
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            No hay lotes registrados.
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
             </table>
         </div>
         <div class="card-footer bg-white">{{ $lotes->links() }}</div>

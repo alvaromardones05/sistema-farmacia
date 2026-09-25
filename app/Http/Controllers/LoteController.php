@@ -6,19 +6,33 @@ use App\Http\Controllers\Controller;
 use App\Models\Lote;
 use App\Models\Producto;
 use Illuminate\Http\Request;
+use App\Models\Stock;
+use App\Models\UbicacionAlmacen;
+use Illuminate\Support\Facades\DB;
 
 class LoteController extends Controller
 {
     public function index()
     {
-        $lotes = Lote::with('producto')->paginate(15);
+        $lotes = Lote::with([
+            'producto',
+            'stock.ubicacion',
+        ])->paginate(15);
+
         return view('lotes.index', compact('lotes'));
     }
 
     public function create()
     {
-        $productos = Producto::where('activo', true)->get();
-        return view('lotes.create', compact('productos'));
+        $productos = Producto::where('activo', true)
+            ->orderBy('nombre')
+            ->get();
+
+        $ubicaciones = UbicacionAlmacen::where('activo', true)
+            ->orderBy('nombre')
+            ->get();
+
+        return view('lotes.create', compact('productos', 'ubicaciones'));
     }
 
     public function store(Request $request)
@@ -29,11 +43,42 @@ class LoteController extends Controller
             'fecha_fabricacion' => 'nullable|date',
             'fecha_vencimiento' => 'required|date|after:today',
             'cantidad_inicial'  => 'required|integer|min:0',
+            'ubicacion_id'      => 'required|exists:ubicaciones_almacen,id',
             'estado'            => 'required|in:activo,agotado,vencido',
             'observaciones'     => 'nullable|string',
         ]);
 
-        Lote::create($validated);
+        DB::transaction(function () use ($validated) {
+
+            $lote = Lote::create([
+                'producto_id'       => $validated['producto_id'],
+                'numero_lote'       => $validated['numero_lote'],
+                'fecha_fabricacion' => $validated['fecha_fabricacion'] ?? null,
+                'fecha_vencimiento' => $validated['fecha_vencimiento'],
+                'cantidad_inicial'  => $validated['cantidad_inicial'],
+                'estado'            => $validated['estado'],
+                'observaciones'     => $validated['observaciones'] ?? null,
+            ]);
+
+            if ($validated['cantidad_inicial'] > 0) {
+
+                $producto = Producto::findOrFail($validated['producto_id']);
+
+                $ubicacion = UbicacionAlmacen::findOrFail(
+                    $validated['ubicacion_id']
+                );
+
+                Stock::registrarEntrada(
+                    producto: $producto,
+                    lote: $lote,
+                    ubicacion: $ubicacion,
+                    cantidad: $validated['cantidad_inicial'],
+                    usuarioId: auth()->id(),
+                    referencia: 'Lote ' . $lote->numero_lote,
+                    motivo: 'Ingreso inicial de lote'
+                );
+            }
+        });
 
         return redirect()
             ->route('lotes.index')
