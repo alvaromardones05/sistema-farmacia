@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             'ver_stock',
             'gestionar_convenios',
             'gestionar_recetas',
+            'gestionar_pacientes',
             'validar_recetas',
             'autorizar_libro_isp',
             'anular_ventas',
@@ -70,6 +71,7 @@ class DatabaseSeeder extends Seeder
             'gestionar_productos',
             'gestionar_precios',
             'gestionar_recetas',
+            'gestionar_pacientes',
             'validar_recetas',
             'autorizar_libro_isp',
             'anular_ventas',
@@ -95,6 +97,7 @@ class DatabaseSeeder extends Seeder
             'gestionar_stock',
             'ver_stock',
             'gestionar_convenios',
+            'gestionar_pacientes',
             
         ]);
 
@@ -127,6 +130,7 @@ class DatabaseSeeder extends Seeder
             ProveedoresSeeder::class,
             ConveniosSeeder::class,
             CajaSeeder::class,
+            PrecioSeeder::class,
         ]);
     }
 }

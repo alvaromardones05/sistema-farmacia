@@ -13,7 +13,6 @@
         {{ config('app.name', 'Sistema de Farmacia') }}
     </title>
 
-
     <!-- =====================================================
          BOOTSTRAP
     ====================================================== -->
@@ -33,7 +32,6 @@
         href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
     >
 
-
     <!-- =====================================================
          GOOGLE FONTS
     ====================================================== -->
@@ -49,8 +47,6 @@
 
 
 <body>
-
-
     <!-- =====================================================
          BARRA SUPERIOR
     ====================================================== -->
@@ -58,19 +54,14 @@
     <nav class="navbar navbar-dark navbar-farmacia">
 
         <div class="container-fluid">
-
-
             <!-- LOGO + NOMBRE -->
-
             <a
                 href="{{ route('dashboard') }}"
                 class="navbar-brand fw-bold"
             >
 
                 <i class="bi bi-capsule"></i>
-
                 Sistema de Farmacia
-
             </a>
 
 
@@ -98,7 +89,6 @@
                             {{ Auth::user()->roles->pluck('name')->first() }}
                         </small>
                     </span>
-
                 </button>
 
 
@@ -126,11 +116,8 @@
                                 <small class="text-muted">
                                     {{ Auth::user()->email }}
                                 </small>
-
                             </div>
-
                         </div>
-
                     </li>
 
                     <li><hr class="dropdown-divider"></li>
@@ -174,11 +161,8 @@
                                 <span>Cerrar sesión</span>
 
                             </button>
-
                         </form>
-
                     </li>
-
                 </ul>
 
             </div>
@@ -224,6 +208,24 @@
                     Dashboard
 
                 </a>
+
+                <!-- CAJA -->
+
+                @hasrole('Técnico Farmacéutico')
+                    <a
+                    
+                        href="{{ route('caja.index') }}"
+                        class="nav-link
+                        {{ request()->routeIs('caja.*') ? 'active' : '' }}"
+                    >
+
+                        <i class="bi bi-cash-coin me-2"></i>
+
+                        Caja
+
+                    </a>
+
+                @endhasrole
 
                 <!-- INVENTARIO -->
 
@@ -281,21 +283,30 @@
 
                 <!-- VENTAS -->
 
-                @can('ver_stock')
+                @hasanyrole('Técnico Farmacéutico|Químico Farmacéutico')
+                    <a href="{{ route('ventas.index') }}" class="nav-link {{ request()->routeIs('ventas.*') ? 'active' : '' }}">
+                        <i class="bi bi-cart-check me-2"></i>Ventas
+                    </a>
+                @endhasanyrole
 
+
+                <!-- PACIENTES -->
+
+                @hasanyrole('Técnico Farmacéutico|Químico Farmacéutico')
                     <a
-                        href="{{ route('ventas.index') }}"
+                    
+                        href="{{ route('pacientes.index') }}"
                         class="nav-link
-                        {{ request()->routeIs('ventas.*') ? 'active' : '' }}"
+                        {{ request()->routeIs('pacientes.*') ? 'active' : '' }}"
                     >
 
-                        <i class="bi bi-cart-check me-2"></i>
+                        <i class="bi bi-person-heart me-2"></i>
 
-                        Ventas
+                        Pacientes
 
                     </a>
 
-                @endcan
+                @endhasanyrole
 
 
                 
@@ -348,15 +359,7 @@
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">
     </script>
 
-
-    <!-- =====================================================
-         ESTILOS
-    ====================================================== -->
-
     <style>
-       /* =====================================================
-   VARIABLES
-====================================================== */
 :root {
     --mint-900: #064e3b;
     --mint-800: #065f46;
@@ -525,7 +528,7 @@ body::after {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
 
-    /* 🔑 evita que el botón cambie de tamaño al abrir */
+    /* evita que el botón cambie de tamaño al abrir */
     min-width: 0;
 }
 
@@ -535,10 +538,9 @@ body::after {
     border-color: rgba(255, 255, 255, 0.35);
     color: var(--blanco);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
-    /* ❌ quitamos el translateY(-1px) que movía el layout */
 }
 
-/* 🔑 Flechita estable: ancho fijo, no se sale del flujo */
+/*Flechita estable: ancho fijo, no se sale del flujo */
 .btn-perfil::after {
     content: "";
     display: inline-block;
@@ -556,7 +558,7 @@ body::after {
     transition: transform 0.25s ease;
     opacity: 0.85;
 
-    /* 🔑 evita que Bootstrap meta su propio margin */
+    /*evita que Bootstrap meta su propio margin */
     vertical-align: middle;
 }
 

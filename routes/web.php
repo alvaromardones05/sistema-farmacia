@@ -8,6 +8,10 @@ use App\Http\Controllers\Web\UsuarioController;
 use App\Http\Controllers\LoteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\AperturaCajaController;
+use App\Http\Controllers\PacienteController;
+
+
 
 // Página principal
 Route::get('/', function () {
@@ -83,19 +87,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware('role:Químico Farmacéutico|Técnico Farmacéutico')->group(function () {
 
-        Route::get('/ventas', [VentaController::class, 'index'])
-            ->name('ventas.index');
+    Route::get('/ventas', [VentaController::class, 'index'])
+        ->name('ventas.index');
 
-        Route::get('/ventas/crear', [VentaController::class, 'create'])
-            ->name('ventas.create');
+    Route::get('/ventas/crear', [VentaController::class, 'create'])
+        ->name('ventas.create');
 
-        Route::post('/ventas', [VentaController::class, 'store'])
-            ->name('ventas.store');
+    Route::post('/ventas', [VentaController::class, 'store'])
+        ->name('ventas.store');
 
-        Route::get('/ventas/{venta}', [VentaController::class, 'show'])
-            ->name('ventas.show');
+    // Rutas específicas antes de /ventas/{venta}
+    Route::get('/ventas/reporte-diario', [VentaController::class, 'reporteDiario'])
+        ->name('ventas.reporte-diario');
 
-    });
+    Route::get('/ventas/{venta}', [VentaController::class, 'show'])
+        ->name('ventas.show');
+
+    Route::post('/ventas/{venta}/anular', [VentaController::class, 'anular'])
+        ->name('ventas.anular');
+});
 
 
     // =================================================
@@ -183,7 +193,35 @@ Route::middleware('permission:gestionar_stock')->group(function () {
     Route::get('/inventario/transferir', [InventarioController::class, 'mostrarTransferir'])
     ->name('inventario.transferir.form');
 
-    
+});
+
+    Route::middleware('permission:cerrar_caja')->group(function () {
+
+        Route::get('/caja', [AperturaCajaController::class, 'index'])
+            ->name('caja.index');
+
+        Route::post('/caja/abrir', [AperturaCajaController::class, 'abrir'])
+            ->name('caja.abrir');
+
+        Route::post('/caja/{apertura}/cerrar', [AperturaCajaController::class, 'cerrar'])
+            ->name('caja.cerrar');
+
+});
+
+
+    Route::middleware('permission:gestionar_pacientes')->group(function () {
+
+        Route::get('/pacientes', [PacienteController::class, 'index'])
+            ->name('pacientes.index');
+
+        Route::get('/pacientes/crear', [PacienteController::class, 'create'])
+            ->name('pacientes.create');
+
+        Route::post('/pacientes', [PacienteController::class, 'store'])
+            ->name('pacientes.store');
+
+        Route::get('/pacientes/{paciente}', [PacienteController::class, 'show'])
+            ->name('pacientes.show');
 
 });
 
