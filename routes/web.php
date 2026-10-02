@@ -10,7 +10,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\AperturaCajaController;
 use App\Http\Controllers\PacienteController;
-
+use App\Http\Controllers\OrdenCompraController;
+use App\Http\Controllers\ProveedorController;
+use App\Http\Controllers\RecepcionMercaderiaController;
 
 
 // Página principal
@@ -96,14 +98,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/ventas', [VentaController::class, 'store'])
         ->name('ventas.store');
 
-    // Rutas específicas antes de /ventas/{venta}
     Route::get('/ventas/reporte-diario', [VentaController::class, 'reporteDiario'])
         ->name('ventas.reporte-diario');
 
+    Route::get('/ventas/{venta}/boleta', [VentaController::class, 'boleta'])
+        ->whereNumber('venta')
+        ->name('ventas.boleta');
+
     Route::get('/ventas/{venta}', [VentaController::class, 'show'])
+        ->whereNumber('venta')
         ->name('ventas.show');
 
     Route::post('/ventas/{venta}/anular', [VentaController::class, 'anular'])
+        ->whereNumber('venta')
         ->name('ventas.anular');
 });
 
@@ -224,6 +231,64 @@ Route::middleware('permission:gestionar_stock')->group(function () {
             ->name('pacientes.show');
 
 });
+
+    // =================================================
+    // COMPRAS / RECEPCIONES
+    // Técnico + Químico + Bodeguero
+    // =================================================
+
+    Route::middleware('role:Químico Farmacéutico|Técnico Farmacéutico|Bodeguero')->group(function () {
+
+        Route::get('/compras', [OrdenCompraController::class, 'index'])
+            ->name('compras.index');
+
+        Route::get('/compras/crear', [OrdenCompraController::class, 'create'])
+            ->name('compras.create');
+
+        Route::post('/compras', [OrdenCompraController::class, 'store'])
+            ->name('compras.store');
+
+        Route::get('/compras/{orden}', [OrdenCompraController::class, 'show'])
+            ->whereNumber('orden')
+            ->name('compras.show');
+
+        // PROVEEDORES
+
+        Route::get('/compras/proveedores', [ProveedorController::class, 'index'])
+            ->name('compras.proveedores.index');
+
+        Route::get('/compras/proveedores/crear', [ProveedorController::class, 'create'])
+            ->name('compras.proveedores.create');
+
+        Route::post('/compras/proveedores', [ProveedorController::class, 'store'])
+            ->name('compras.proveedores.store');
+
+        Route::get('/compras/proveedores/{proveedor}/editar', [ProveedorController::class, 'edit'])
+            ->name('compras.proveedores.edit');
+
+        Route::put('/compras/proveedores/{proveedor}', [ProveedorController::class, 'update'])
+            ->name('compras.proveedores.update');
+
+        Route::patch('/compras/proveedores/{proveedor}/estado', [ProveedorController::class, 'cambiarEstado'])
+            ->name('compras.proveedores.estado');
+    });
+
+    // RECEPCIONES
+
+        Route::get('/compras/recepciones', [RecepcionMercaderiaController::class, 'index'])
+            ->name('compras.recepciones.index');
+
+        Route::get('/compras/recepciones/{recepcion}', [RecepcionMercaderiaController::class, 'show'])
+            ->whereNumber('recepcion')
+            ->name('compras.recepciones.show');
+
+        Route::get('/compras/{orden}/recibir', [RecepcionMercaderiaController::class, 'create'])
+            ->whereNumber('orden')
+            ->name('compras.recepciones.create');
+
+        Route::post('/compras/{orden}/recibir', [RecepcionMercaderiaController::class, 'store'])
+            ->whereNumber('orden')
+            ->name('compras.recepciones.store');
 
 });
 

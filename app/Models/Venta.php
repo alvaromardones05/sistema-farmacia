@@ -36,7 +36,6 @@ class Venta extends Model
         'deleted_at' => 'datetime',
     ];
 
-    // Relaciones
     public function paciente()
     {
         return $this->belongsTo(Paciente::class, 'paciente_id');
@@ -82,25 +81,21 @@ class Venta extends Model
         return $this->hasMany(RecetaRetenida::class, 'venta_id');
     }
 
-    // Métodos
     public function agregarDetalle(VentaDetalle $detalle): void
     {
         $this->detalles()->save($detalle);
     }
 
-    
-
     public function montoPagado(): float
     {
-        return $this->pagos()->sum('monto');
+        return (float) $this->pagos()->sum('monto');
     }
 
     public function saldoPendiente(): float
     {
-        return $this->total - $this->montoPagado();
+        return (float) $this->total - $this->montoPagado();
     }
 
-    // Scopes
     public function scopeCompletadas($query)
     {
         return $query->where('estado', 'completada');
@@ -111,27 +106,49 @@ class Venta extends Model
         return $query->where('estado', 'anulada');
     }
 
-        /**
-     * Generar número de venta único
-     */
     public static function generarNumeroVenta(): string
     {
-        $ultimaVenta = static::latest('id')->first();
-        $numero = $ultimaVenta ? $ultimaVenta->id + 1 : 1;
+        $ultimaVenta = static::withTrashed()
+            ->latest('id')
+            ->first();
+
+        $numero = $ultimaVenta
+            ? $ultimaVenta->id + 1
+            : 1;
+
         return str_pad($numero, 8, '0', STR_PAD_LEFT);
     }
 
-    /**
-     * Calcular totales de la venta
-     */
     public function calcularTotales(): void
     {
-        $this->subtotal = $this->detalles()->sum('subtotal');
-        $this->impuesto = $this->detalles()->sum('impuesto');
-        $this->total = $this->detalles()->sum('total');
+        $detalles = $this->detalles()->get();
+
+        $this->subtotal = round(
+            $detalles->sum(fn ($detalle) => (float) $detalle->subtotal),
+            2
+        );
+
+        $this->descuento = round(
+            $detalles->sum(function ($detalle) {
+                $precioOriginal =
+                    (float) $detalle->precio_unitario * $detalle->cantidad;
+
+                return $precioOriginal *
+                    ((float) $detalle->descuento_pct / 100);
+            }),
+            2
+        );
+
+        $this->impuesto = round(
+            $detalles->sum(fn ($detalle) => (float) $detalle->impuesto),
+            2
+        );
+
+        $this->total = round(
+            $detalles->sum(fn ($detalle) => (float) $detalle->total),
+            2
+        );
+
         $this->save();
     }
-
-
-
 }

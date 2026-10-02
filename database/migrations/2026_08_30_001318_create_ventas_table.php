@@ -10,21 +10,45 @@ return new class extends Migration
     {
         Schema::create('ventas', function (Blueprint $table) {
             $table->id();
+
             $table->string('numero_venta', 50)->unique();
-            $table->foreignId('paciente_id')->constrained('pacientes')->onDelete('restrict');
-            $table->foreignId('usuario_id')->constrained('users')->onDelete('restrict');
-            $table->foreignId('apertura_caja_id')->constrained('aperturas_caja')->onDelete('restrict');
-            $table->foreignId('convenio_id')->nullable()->constrained('convenios')->onDelete('set null');
+
+            $table->foreignId('paciente_id')
+                ->nullable()
+                ->constrained('pacientes')
+                ->onDelete('restrict');
+
+            $table->foreignId('usuario_id')
+                ->constrained('users')
+                ->onDelete('restrict');
+
+            $table->foreignId('apertura_caja_id')
+                ->constrained('aperturas_caja')
+                ->onDelete('restrict');
+
+            $table->foreignId('convenio_id')
+                ->nullable()
+                ->constrained('convenios')
+                ->onDelete('set null');
+
             $table->dateTime('fecha_venta');
-            $table->decimal('subtotal', 12, 2);
-            $table->decimal('descuento', 12, 2)->default(0);
-            $table->decimal('impuesto', 12, 2);
-            $table->decimal('total', 12, 2);
-            $table->enum('estado', ['pendiente', 'completada', 'devuelta', 'anulada'])->default('completada');
+
+            $table->unsignedBigInteger('subtotal')->default(0);
+            $table->unsignedBigInteger('descuento')->default(0);
+            $table->unsignedBigInteger('impuesto')->default(0);
+            $table->unsignedBigInteger('total')->default(0);
+
+            $table->enum(
+                'estado',
+                ['pendiente', 'completada', 'devuelta', 'anulada']
+            )->default('pendiente');
+
             $table->text('observaciones')->nullable();
+
             $table->softDeletes();
             $table->timestamps();
-            $table->index(['created_at']);
+
+            $table->index('created_at');
         });
     }
 

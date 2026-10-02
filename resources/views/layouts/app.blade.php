@@ -45,7 +45,7 @@
 
 </head>
 
-
+@yield('scripts')
 <body>
     <!-- =====================================================
          BARRA SUPERIOR
@@ -258,7 +258,6 @@
                         Productos
 
                     </a>
-
                 @endhasanyrole
 
 
@@ -277,7 +276,18 @@
                         Lotes
 
                     </a>
+                @endhasanyrole
 
+                <!-- COMPRAS / RECEPCIONES -->
+
+                @hasanyrole('Técnico Farmacéutico|Químico Farmacéutico|Bodeguero')
+                    <a
+                        href="{{ route('compras.index') }}"
+                        class="nav-link {{ request()->routeIs('compras.*') ? 'active' : '' }}"
+                    >
+                        <i class="bi bi-truck me-2"></i>
+                        Compras / Recepciones
+                    </a>
                 @endhasanyrole
 
 
@@ -291,7 +301,6 @@
 
 
                 <!-- PACIENTES -->
-
                 @hasanyrole('Técnico Farmacéutico|Químico Farmacéutico')
                     <a
                     
@@ -305,15 +314,10 @@
                         Pacientes
 
                     </a>
-
                 @endhasanyrole
 
 
-                
-
-
                 <!-- USUARIOS -->
-
                 @hasrole('Administrador')
 
                     <a
@@ -327,10 +331,7 @@
                         Usuarios
 
                     </a>
-
                 @endhasrole
-
-
             </nav>
 
         </aside>

@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('orden_compra_id')->constrained('ordenes_compra')->onDelete('cascade');
             $table->foreignId('producto_id')->constrained('productos')->onDelete('restrict');
             $table->integer('cantidad_solicitada');
-            $table->decimal('precio_unitario', 12, 2);
+            $table->unsignedBigInteger('precio_unitario');
             $table->integer('cantidad_recibida')->default(0);
             $table->enum('estado_linea', ['pendiente', 'parcial', 'recibida', 'cancelada'])->default('pendiente');
             $table->timestamps();

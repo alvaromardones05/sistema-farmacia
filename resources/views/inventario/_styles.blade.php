@@ -1,8 +1,4 @@
 <style>
-    /* =========================================================
-       INVENTARIO
-       ========================================================= */
-
     .inventario-modulo .card {
         border-radius: 0.75rem;
         overflow: hidden;
@@ -17,11 +13,6 @@
     .inventario-modulo .card-footer {
         border-top: 1px solid #eef0f2;
     }
-
-
-    /* =========================================================
-       TABLAS
-       ========================================================= */
 
     .inventario-modulo table thead th {
         text-transform: uppercase;
@@ -283,4 +274,160 @@
             width: 100%;
         }
     }
+
+
+    /* =========================================================
+   TARJETAS DE RESUMEN — mejoradas
+   ========================================================= */
+
+.inventario-modulo .tarjeta-resumen {
+    transition: transform 0.15s ease-in-out,
+                box-shadow 0.15s ease-in-out;
+}
+
+.inventario-modulo .tarjeta-resumen .card-body {
+    padding: 1rem 1.15rem;
+}
+
+.inventario-modulo .tarjeta-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+}
+
+.inventario-modulo .tarjeta-resumen .etiqueta {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #6c757d;
+    margin-bottom: 0.15rem;
+}
+
+.inventario-modulo .tarjeta-resumen .valor {
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.inventario-modulo .tarjeta-clickable {
+    cursor: pointer;
+}
+
+.inventario-modulo .tarjeta-clickable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08) !important;
+}
+
+
+/* =========================================================
+   BOTONES DE OPERACIÓN — más grandes y claros
+   ========================================================= */
+
+.inventario-modulo .btn-operacion {
+    padding: 0.65rem 1.35rem;
+    font-weight: 600;
+    font-size: 0.92rem;
+    border-radius: 0.6rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* Ajustar: tono ámbar suave para no competir con el azul principal */
+.inventario-modulo .btn-operacion-ajuste {
+    background-color: #fef3c7;
+    border: 1px solid #fcd34d;
+    color: #92400e;
+}
+
+.inventario-modulo .btn-operacion-ajuste:hover {
+    background-color: #fde68a;
+    border-color: #f59e0b;
+    color: #78350f;
+}
+
+
+/* =========================================================
+   TABLA DE STOCK — más legible
+   ========================================================= */
+
+.inventario-modulo .tabla-stock thead th {
+    background-color: #f8fafc;
+}
+
+.inventario-modulo .tabla-stock tbody td {
+    padding-top: 0.9rem;
+    padding-bottom: 0.9rem;
+}
+
+/* Celda producto: nombre + código apilados */
+.inventario-modulo .producto-cell {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.inventario-modulo .producto-nombre {
+    font-weight: 600;
+    color: #212529;
+}
+
+.inventario-modulo .producto-codigo {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-top: 0.15rem;
+}
+
+/* Chip de lote */
+.inventario-modulo .lote-chip {
+    display: inline-flex;
+    align-items: center;
+    background: #f1f5f9;
+    color: #475569;
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+}
+
+/* Ubicación con ícono */
+.inventario-modulo .ubicacion-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #495057;
+}
+
+.inventario-modulo .ubicacion-cell i {
+    color: #94a3b8;
+    font-size: 0.85rem;
+}
+
+/* Cantidad */
+.inventario-modulo .cantidad-valor {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #212529;
+}
+
+.inventario-modulo .cantidad-unidad {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin-left: 0.2rem;
+}
+
+/* Badges de estado más compactos */
+.inventario-modulo .tabla-stock .badge {
+    font-size: 0.72rem;
+    padding: 0.35em 0.75em;
+    border-radius: 0.45rem;
+    min-width: 70px;
+}
 </style>

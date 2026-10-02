@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('nombre', 150);
             $table->string('codigo_convenio', 50)->unique();
-            $table->enum('tipo', ['isapre', 'fonasa', 'particular', 'otro'])->default('particular');
+            $table->enum('tipo', ['isapre','fonasa','ges','particular','otro'])->default('particular');
             $table->decimal('descuento_pct', 5, 2)->default(0);
             $table->boolean('activo')->default(true);
             $table->text('observaciones')->nullable();

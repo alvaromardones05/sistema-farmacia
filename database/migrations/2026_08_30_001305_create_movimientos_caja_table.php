@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('apertura_caja_id')->constrained('aperturas_caja')->onDelete('restrict');
             $table->enum('tipo', ['venta', 'pago', 'reembolso', 'deposito', 'gasto'])->default('venta');
-            $table->decimal('monto', 12, 2);
+            $table->unsignedBigInteger('monto');
             $table->string('referencia_documento', 100)->nullable();
             $table->text('concepto')->nullable();
             $table->foreignId('usuario_id')->constrained('users')->onDelete('restrict');

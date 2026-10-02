@@ -17,28 +17,35 @@ class AperturaCajaController extends Controller
     }
 
     public function abrir(Request $request)
-    {
-        // Solo una caja abierta a la vez en todo el sistema.
-        if (AperturaCaja::abiertas()->exists()) {
-            return back()->withError('Ya hay una caja abierta. Ciérrala antes de abrir otra.');
-        }
+{
+    $request->validate([
+        'caja_id' => 'required|exists:cajas,id',
+        'saldo_inicial' => 'required|numeric|min:0',
+        'redirect_to' => 'nullable|string',
+    ]);
 
-        $validated = $request->validate([
-            'caja_id' => 'required|exists:cajas,id',
-            'saldo_inicial' => 'required|numeric|min:0',
+    if (AperturaCaja::abiertas()->exists()) {
+        return back()->withErrors([
+            'caja' => 'Ya existe una caja abierta.'
         ]);
-
-        AperturaCaja::create([
-            'caja_id' => $validated['caja_id'],
-            'usuario_id' => auth()->id(),
-            'fecha_apertura' => now(),
-            'saldo_inicial' => $validated['saldo_inicial'],
-            'estado' => 'abierta',
-        ]);
-
-        return redirect()->route('caja.index')->with('success', 'Caja abierta correctamente.');
     }
 
+    AperturaCaja::create([
+        'caja_id' => $request->caja_id,
+        'usuario_id' => auth()->id(),
+        'fecha_apertura' => now(),
+        'saldo_inicial' => $request->saldo_inicial,
+        'estado' => 'abierta',
+    ]);
+
+    if ($request->filled('redirect_to')) {
+        return redirect($request->redirect_to)
+            ->with('success', 'Caja abierta correctamente.');
+    }
+
+    return redirect()->route('caja.index')
+        ->with('success', 'Caja abierta correctamente.');
+}
     public function cerrar(AperturaCaja $apertura)
     {
         if ($apertura->estado !== 'abierta') {

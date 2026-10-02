@@ -21,6 +21,24 @@
                 <input id="nombre" name="nombre" value="{{ old('nombre', $producto?->nombre) }}" class="form-control @error('nombre') is-invalid @enderror" required>
                 @error('nombre')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
+
+            <div class="col-md-3">
+                <label for="precio_base" class="form-label">Precio de venta *</label>
+                <input
+                    id="precio_base"
+                    type="number"
+                    min="0"
+                    step="1"
+                    name="precio_base"
+                    value="{{ old('precio_base', $producto?->precio_base) }}"
+                    class="form-control @error('precio_base') is-invalid @enderror"
+                    required
+                >
+                @error('precio_base')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
             <div class="col-md-3">
                 <label for="codigo_interno" class="form-label">Código interno *</label>
                 <input id="codigo_interno" name="codigo_interno" value="{{ old('codigo_interno', $producto?->codigo_interno) }}" class="form-control @error('codigo_interno') is-invalid @enderror" {{ $producto ? 'readonly' : 'required' }}>

@@ -6,11 +6,13 @@ use App\Models\Venta;
 use App\Models\VentaDetalle;
 use App\Models\Paciente;
 use App\Models\Producto;
-use App\Models\Lote;
 use App\Models\Stock;
 use App\Models\AperturaCaja;
 use App\Models\UbicacionAlmacen;
 use App\Models\Convenio;
+use App\Models\Pago;
+use App\Models\DocumentoTributario;
+use App\Models\MovimientoCaja;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -26,7 +28,7 @@ class VentaController extends Controller
         return view('ventas.index', compact('ventas'));
     }
 
-    // ===================== CREAR (FORM) =====================
+    // ===================== CREAR =====================
     public function create()
     {
         $aperturaCaja = AperturaCaja::abiertas()->first();
@@ -36,14 +38,17 @@ class VentaController extends Controller
 
         $ubicacionVenta = UbicacionAlmacen::where('tipo', 'vitrina')->first();
 
-        // Dataset para el formulario: producto + precio vigente + stock
-        // disponible en vitrina, ya calculado en el servidor para que
-        // el JS del formulario no tenga que pedir nada nuevo al backend.
         $productos = Producto::activos()->get()->map(function (Producto $producto) use ($ubicacionVenta) {
             $precio = $producto->getPrecioVigente();
+
             $disponible = $ubicacionVenta
                 ? Stock::where('producto_id', $producto->id)
                     ->where('ubicacion_id', $ubicacionVenta->id)
+                    ->where('cantidad', '>', 0)
+                    ->whereHas('lote', function ($q) {
+                        $q->where('estado', 'activo')
+                            ->whereDate('fecha_vencimiento', '>=', today());
+                    })
                     ->sum('cantidad')
                 : 0;
 
@@ -54,10 +59,18 @@ class VentaController extends Controller
                 'precio_neto' => $precio?->precio_neto ?? 0,
                 'tiene_precio' => $precio !== null,
                 'disponible' => (int) $disponible,
+                'requiere_receta' => (bool) $producto->requiere_receta,
+                'tipo_receta' => $producto->tipo_receta,
             ];
         });
 
-        return view('ventas.create', compact('pacientes', 'convenios', 'productos', 'aperturaCaja', 'ubicacionVenta'));
+        return view('ventas.create', compact(
+            'pacientes',
+            'convenios',
+            'productos',
+            'aperturaCaja',
+            'ubicacionVenta'
+        ));
     }
 
     // ===================== GUARDAR =====================
@@ -66,18 +79,26 @@ class VentaController extends Controller
         $aperturaCaja = AperturaCaja::abiertas()->first();
 
         if (!$aperturaCaja) {
-            return back()->withInput()->withErrors(['caja' => 'No hay caja abierta. Ábrela antes de vender.']);
+            return back()
+                ->withInput()
+                ->withErrors(['caja' => 'No hay caja abierta. Ábrela antes de vender.']);
         }
 
         $ubicacionVenta = UbicacionAlmacen::where('tipo', 'vitrina')->first();
 
         if (!$ubicacionVenta) {
-            return back()->withInput()->withErrors(['ubicacion' => 'No existe una ubicación de tipo vitrina configurada.']);
+            return back()
+                ->withInput()
+                ->withErrors(['ubicacion' => 'No existe una ubicación de tipo vitrina configurada.']);
         }
 
         $validated = $request->validate([
-            'paciente_id' => 'required|exists:pacientes,id',
+            'paciente_id' => 'nullable|exists:pacientes,id',
             'convenio_id' => 'nullable|exists:convenios,id',
+
+            'metodo_pago' => 'required|in:efectivo,debito,credito,transferencia,cheque',
+            'referencia_transaccion' => 'nullable|string|max:100',
+
             'detalles' => 'required|array|min:1',
             'detalles.*.producto_id' => 'required|exists:productos,id',
             'detalles.*.cantidad' => 'required|integer|min:1',
@@ -85,89 +106,222 @@ class VentaController extends Controller
         ]);
 
         try {
-            $venta = DB::transaction(function () use ($validated, $aperturaCaja, $ubicacionVenta) {
-
+            $venta = DB::transaction(function () use (
+                $validated,
+                $aperturaCaja,
+                $ubicacionVenta
+            ) {
                 $venta = Venta::create([
                     'numero_venta' => Venta::generarNumeroVenta(),
-                    'paciente_id' => $validated['paciente_id'],
+                    'paciente_id' => $validated['paciente_id'] ?? null,
                     'usuario_id' => auth()->id(),
                     'apertura_caja_id' => $aperturaCaja->id,
                     'convenio_id' => $validated['convenio_id'] ?? null,
                     'fecha_venta' => now(),
+                    'subtotal' => 0,
+                    'descuento' => 0,
+                    'impuesto' => 0,
+                    'total' => 0,
                     'estado' => 'pendiente',
                 ]);
 
                 foreach ($validated['detalles'] as $detalle) {
-                    $producto = Producto::findOrFail($detalle['producto_id']);
-                    $cantidad = (int) $detalle['cantidad'];
+                    $producto = Producto::activos()->findOrFail($detalle['producto_id']);
+
+                    if ($producto->requiere_receta) {
+                        throw new \Exception(
+                            "El producto {$producto->nombre} requiere receta y no puede venderse como venta libre."
+                        );
+                    }
+
+                    $cantidadSolicitada = (int) $detalle['cantidad'];
                     $descuentoPct = (float) ($detalle['descuento_pct'] ?? 0);
 
-                    $precioPrecio = $producto->getPrecioVigente();
-                    if (!$precioPrecio) {
-                        throw new \Exception("No hay precio vigente para {$producto->nombre}.");
+                    $precio = $producto->getPrecioVigente();
+
+                    if (!$precio) {
+                        throw new \Exception(
+                            "No hay precio vigente para {$producto->nombre}."
+                        );
                     }
 
-                    // FEFO: el sistema elige el lote, no el vendedor.
-                    $lote = $this->seleccionarLoteFEFO($producto, $ubicacionVenta, $cantidad);
-                    if (!$lote) {
-                        throw new \Exception("Stock insuficiente de {$producto->nombre} en vitrina.");
-                    }
-
-                    $subtotal = $precioPrecio->precio_neto * $cantidad * (1 - $descuentoPct / 100);
-                    $impuesto = $subtotal * 0.19;
-                    $total = $subtotal + $impuesto;
-
-                    VentaDetalle::create([
-                        'venta_id' => $venta->id,
-                        'producto_id' => $producto->id,
-                        'lote_id' => $lote->id,
-                        'cantidad' => $cantidad,
-                        'precio_unitario' => $precioPrecio->precio_neto,
-                        'descuento_pct' => $descuentoPct,
-                        'subtotal' => $subtotal,
-                        'impuesto' => $impuesto,
-                        'total' => $total,
-                    ]);
-
-                    Stock::registrarSalida(
+                    $stocks = $this->obtenerStocksFEFO(
                         $producto,
-                        $lote,
-                        $ubicacionVenta,
-                        $cantidad,
-                        auth()->id(),
-                        'salida',
-                        "Venta #{$venta->numero_venta}"
+                        $ubicacionVenta
                     );
+
+                    $stockTotal = (int) $stocks->sum('cantidad');
+
+                    if ($stockTotal < $cantidadSolicitada) {
+                        throw new \Exception(
+                            "Stock insuficiente de {$producto->nombre} en vitrina."
+                        );
+                    }
+
+                    $cantidadRestante = $cantidadSolicitada;
+
+                    foreach ($stocks as $stock) {
+                        if ($cantidadRestante <= 0) {
+                            break;
+                        }
+
+                        $cantidadLote = min(
+                            $cantidadRestante,
+                            (int) $stock->cantidad
+                        );
+
+                        $subtotalSinDescuento =
+                            (float) $precio->precio_neto * $cantidadLote;
+
+                        $descuentoMonto =
+                            $subtotalSinDescuento * ($descuentoPct / 100);
+
+                        $subtotal =
+                            $subtotalSinDescuento - $descuentoMonto;
+
+                        $impuesto = $subtotal * 0.19;
+                        $total = $subtotal + $impuesto;
+
+                        VentaDetalle::create([
+                            'venta_id' => $venta->id,
+                            'producto_id' => $producto->id,
+                            'lote_id' => $stock->lote_id,
+                            'cantidad' => $cantidadLote,
+                            'precio_unitario' => $precio->precio_neto,
+                            'descuento_pct' => $descuentoPct,
+                            'subtotal' => round($subtotal, 2),
+                            'impuesto' => round($impuesto, 2),
+                            'total' => round($total, 2),
+                        ]);
+
+                        Stock::registrarSalida(
+                            $producto,
+                            $stock->lote,
+                            $ubicacionVenta,
+                            $cantidadLote,
+                            auth()->id(),
+                            'salida',
+                            "Venta #{$venta->numero_venta}"
+                        );
+
+                        $cantidadRestante -= $cantidadLote;
+                    }
                 }
 
+                // Calcular totales reales
                 $venta->calcularTotales();
-                $venta->update(['estado' => 'completada']);
+
+                // Registrar pago
+                Pago::create([
+                    'venta_id' => $venta->id,
+                    'metodo_pago' => $validated['metodo_pago'],
+                    'monto' => $venta->total,
+                    'referencia_transaccion' =>
+                        $validated['referencia_transaccion'] ?? null,
+                ]);
+
+                // Registrar movimiento de caja
+                MovimientoCaja::create([
+                    'apertura_caja_id' => $aperturaCaja->id,
+                    'tipo' => 'venta',
+                    'monto' => $venta->total,
+                    'referencia_documento' => $venta->numero_venta,
+                    'concepto' => "Venta #{$venta->numero_venta}",
+                    'usuario_id' => auth()->id(),
+                ]);
+
+                // Generar boleta simulada
+                DocumentoTributario::create([
+                    'venta_id' => $venta->id,
+                    'tipo' => 'boleta_electronica',
+                    'folio' => $venta->id,
+                    'fecha_emision' => now(),
+                    'pdf_path' => null,
+                    'estado_sii' => 'simulado',
+                    'track_id' => 'SIM-' . $venta->numero_venta,
+                ]);
+
+                $venta->update([
+                    'estado' => 'completada',
+                ]);
 
                 return $venta;
             });
+
         } catch (\Throwable $e) {
-            return back()->withInput()->withErrors(['venta' => $e->getMessage()]);
+            return back()
+                ->withInput()
+                ->withErrors(['venta' => $e->getMessage()]);
         }
 
-        return redirect()->route('ventas.show', $venta)->with('success', 'Venta procesada exitosamente.');
+        return redirect()
+            ->route('ventas.show', $venta)
+            ->with('success', 'Venta procesada y boleta generada correctamente.');
     }
 
     // ===================== VER =====================
     public function show(Venta $venta)
     {
-        $venta->load('paciente', 'usuario', 'detalles.producto', 'detalles.lote', 'pagos', 'convenio');
+        $venta->load(
+            'paciente',
+            'usuario',
+            'detalles.producto',
+            'detalles.lote',
+            'pagos',
+            'convenio',
+            'documentoTributario'
+        );
 
         return view('ventas.show', compact('venta'));
+    }
+
+    // ===================== BOLETA =====================
+    public function boleta(Venta $venta)
+    {
+        $venta->load(
+            'paciente',
+            'usuario',
+            'detalles.producto',
+            'detalles.lote',
+            'pagos',
+            'documentoTributario'
+        );
+
+        if (!$venta->documentoTributario) {
+            abort(404, 'La venta no tiene una boleta asociada.');
+        }
+
+        return view('ventas.boleta', compact('venta'));
     }
 
     // ===================== ANULAR =====================
     public function anular(Venta $venta, Request $request)
     {
-        $request->validate(['motivo' => 'required|string']);
+        $request->validate([
+            'motivo' => 'required|string|max:500',
+        ]);
+
+        if ($venta->estado !== 'completada') {
+            return back()->withErrors([
+                'venta' => 'Esta venta no puede ser anulada.',
+            ]);
+        }
 
         $ubicacionVenta = UbicacionAlmacen::where('tipo', 'vitrina')->first();
 
-        DB::transaction(function () use ($venta, $ubicacionVenta, $request) {
+        if (!$ubicacionVenta) {
+            return back()->withErrors([
+                'ubicacion' => 'No existe una ubicación de tipo vitrina.',
+            ]);
+        }
+
+        DB::transaction(function () use (
+            $venta,
+            $ubicacionVenta,
+            $request
+        ) {
+            $venta->load('detalles.producto', 'detalles.lote');
+
             foreach ($venta->detalles as $detalle) {
                 Stock::registrarEntrada(
                     $detalle->producto,
@@ -175,15 +329,29 @@ class VentaController extends Controller
                     $ubicacionVenta,
                     $detalle->cantidad,
                     auth()->id(),
-                    "Anulación: {$venta->numero_venta}",
+                    "Anulación venta #{$venta->numero_venta}",
                     $request->input('motivo')
                 );
             }
 
-            $venta->update(['estado' => 'anulada']);
+            MovimientoCaja::create([
+                'apertura_caja_id' => $venta->apertura_caja_id,
+                'tipo' => 'reembolso',
+                'monto' => $venta->total,
+                'referencia_documento' => $venta->numero_venta,
+                'concepto' => "Anulación venta #{$venta->numero_venta}",
+                'usuario_id' => auth()->id(),
+            ]);
+
+            $venta->update([
+                'estado' => 'anulada',
+                'observaciones' => $request->input('motivo'),
+            ]);
         });
 
-        return redirect()->route('ventas.show', $venta)->with('success', 'Venta anulada.');
+        return redirect()
+            ->route('ventas.show', $venta)
+            ->with('success', 'Venta anulada y stock devuelto correctamente.');
     }
 
     // ===================== REPORTE DIARIO =====================
@@ -201,19 +369,21 @@ class VentaController extends Controller
         ]);
     }
 
-    // ===================== FEFO: elegir lote con stock suficiente =====================
-
-    private function seleccionarLoteFEFO(Producto $producto, UbicacionAlmacen $ubicacion, int $cantidadRequerida): ?Lote
-    {
-        $stockDisponible = Stock::where('producto_id', $producto->id)
+    // ===================== FEFO =====================
+    private function obtenerStocksFEFO(
+        Producto $producto,
+        UbicacionAlmacen $ubicacion
+    ) {
+        return Stock::where('producto_id', $producto->id)
             ->where('ubicacion_id', $ubicacion->id)
-            ->where('cantidad', '>=', $cantidadRequerida)
-            ->whereHas('lote', fn($q) => $q->where('estado', 'activo'))
+            ->where('cantidad', '>', 0)
+            ->whereHas('lote', function ($q) {
+                $q->where('estado', 'activo')
+                    ->whereDate('fecha_vencimiento', '>=', today());
+            })
             ->with('lote')
             ->get()
-            ->sortBy(fn($s) => $s->lote->fecha_vencimiento)
-            ->first();
-
-        return $stockDisponible?->lote;
+            ->sortBy(fn ($stock) => $stock->lote->fecha_vencimiento)
+            ->values();
     }
 }

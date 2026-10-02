@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('caja_id')->constrained('cajas')->onDelete('restrict');
             $table->foreignId('usuario_id')->constrained('users')->onDelete('restrict');
             $table->dateTime('fecha_apertura');
-            $table->decimal('saldo_inicial', 12, 2)->default(0);
+            $table->unsignedBigInteger('saldo_inicial')->default(0);
             $table->enum('estado', ['abierta', 'cerrada'])->default('abierta');
             $table->timestamps();
         });

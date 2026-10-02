@@ -15,11 +15,11 @@ return new class extends Migration
             $table->foreignId('lote_id')->constrained('lotes')->onDelete('restrict');
             $table->foreignId('receta_detalle_id')->nullable()->constrained('receta_detalle')->onDelete('set null');
             $table->integer('cantidad');
-            $table->decimal('precio_unitario', 12, 2);
+            $table->unsignedBigInteger('precio_unitario');
             $table->decimal('descuento_pct', 5, 2)->default(0);
-            $table->decimal('subtotal', 12, 2);
-            $table->decimal('impuesto', 12, 2);
-            $table->decimal('total', 12, 2);
+            $table->unsignedBigInteger('subtotal');
+            $table->unsignedBigInteger('impuesto');
+            $table->unsignedBigInteger('total');
             $table->timestamps();
         });
     }

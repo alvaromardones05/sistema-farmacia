@@ -13,6 +13,7 @@ return new class extends Migration
             $table->string('codigo_interno', 30)->unique();
             $table->string('codigo_barra', 50)->nullable()->unique();
             $table->string('nombre', 150);
+            $table->unsignedBigInteger('precio_base')->default(0);
             $table->string('principio_activo', 150)->nullable();
             $table->string('forma_farmaceutica', 50)->nullable();
             $table->string('concentracion', 50)->nullable();

@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('producto_id')->constrained('productos')->onDelete('restrict');
             $table->foreignId('lote_id')->constrained('lotes')->onDelete('restrict');
             $table->integer('cantidad_recibida');
-            $table->decimal('precio_unitario', 12, 2);
+            $table->unsignedBigInteger('precio_unitario');
             $table->timestamps();
         });
     }

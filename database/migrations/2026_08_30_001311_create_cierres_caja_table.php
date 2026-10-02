@@ -18,7 +18,7 @@ return new class extends Migration
             $table->decimal('monto_reembolso', 12, 2)->default(0);
             $table->decimal('monto_gastos', 12, 2)->default(0);
             $table->decimal('saldo_contado', 12, 2);
-            $table->decimal('diferencia', 12, 2)->default(0);
+            $table->bigInteger('diferencia')->default(0);
             $table->enum('estado', ['aceptado', 'con_diferencia', 'rechazado'])->default('aceptado');
             $table->text('observaciones')->nullable();
             $table->timestamps();
