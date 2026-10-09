@@ -13,20 +13,36 @@ class RecepcionMercaderiaDetalle extends Model
 
     protected $fillable = [
         'recepcion_mercaderia_id',
+        'orden_compra_detalle_id',
         'producto_id',
         'lote_id',
         'cantidad_recibida',
         'precio_unitario',
+        'numero_lote',
+        'fecha_fabricacion',
+        'fecha_vencimiento',
     ];
 
     protected $casts = [
-        'precio_unitario' => 'decimal:2',
+        'precio_unitario' => 'integer',
+        'fecha_fabricacion' => 'date',
+        'fecha_vencimiento' => 'date',
     ];
 
-    // Relaciones
     public function recepcion()
     {
-        return $this->belongsTo(RecepcionMercaderia::class, 'recepcion_mercaderia_id');
+        return $this->belongsTo(
+            RecepcionMercaderia::class,
+            'recepcion_mercaderia_id'
+        );
+    }
+
+    public function ordenCompraDetalle()
+    {
+        return $this->belongsTo(
+            OrdenCompraDetalle::class,
+            'orden_compra_detalle_id'
+        );
     }
 
     public function producto()

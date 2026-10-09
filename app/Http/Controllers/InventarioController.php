@@ -17,91 +17,135 @@ class InventarioController extends Controller
 // ===================== LISTAR (tabla plana + filtros + resumen) =====================
 
     public function index(Request $request)
-    {
-        $query = Stock::with(['producto', 'lote', 'ubicacion'])
-            ->whereHas('producto', fn($q) => $q->where('activo', true));
+{
+    $tiposPermitidos = ['vitrina', 'bodega', 'frigorifica'];
+    $tipoActual = $request->get('tipo', 'vitrina');
 
-        $query->when($request->filled('producto_id'), function ($q) use ($request) {
-            $q->where('producto_id', $request->producto_id);
-        });
+    if (!in_array($tipoActual, $tiposPermitidos)) {
+        $tipoActual = 'vitrina';
+    }
 
-        $query->when($request->filled('ubicacion_id'), function ($q) use ($request) {
-            $q->where('ubicacion_id', $request->ubicacion_id);
-        });
+    $ubicacionesTabs = UbicacionAlmacen::where('activo', true)
+        ->whereIn('tipo', $tiposPermitidos)
+        ->get()
+        ->keyBy('tipo');
 
-        $query->when($request->filled('buscar'), function ($q) use ($request) {
-            $termino = $request->buscar;
-            $q->where(function ($sub) use ($termino) {
-                $sub->whereHas('producto', function ($p) use ($termino) {
-                        $p->where('nombre', 'like', "%{$termino}%")
-                          ->orWhere('codigo_interno', 'like', "%{$termino}%");
-                    })
-                    ->orWhereHas('lote', function ($l) use ($termino) {
-                        $l->where('numero_lote', 'like', "%{$termino}%");
-                    });
+    $ubicacionActual = $ubicacionesTabs->get($tipoActual) ?? $ubicacionesTabs->first();
+
+    if (!$ubicacionActual) {
+        abort(500, 'No existen ubicaciones de inventario activas.');
+    }
+
+    $tipoActual = $ubicacionActual->tipo;
+
+    $query = Stock::select(
+            'producto_id',
+            DB::raw('SUM(cantidad) as cantidad_total'),
+            DB::raw('COUNT(DISTINCT lote_id) as lotes_count')
+        )
+        ->with('producto')
+        ->where('ubicacion_id', $ubicacionActual->id)
+        ->whereHas('producto', fn($q) => $q->where('activo', true));
+
+    $query->when($request->filled('producto_id'), function ($q) use ($request) {
+        $q->where('producto_id', $request->producto_id);
+    });
+
+    $query->when($request->filled('buscar'), function ($q) use ($request) {
+        $termino = $request->buscar;
+
+        $q->where(function ($sub) use ($termino) {
+            $sub->whereHas('producto', function ($p) use ($termino) {
+                $p->where('nombre', 'like', "%{$termino}%")
+                    ->orWhere('codigo_interno', 'like', "%{$termino}%");
+            })
+            ->orWhereHas('lote', function ($l) use ($termino) {
+                $l->where('numero_lote', 'like', "%{$termino}%");
             });
         });
+    });
 
-        $stock = $query->orderBy('producto_id')->orderBy('id')
-            ->paginate(15)
-            ->withQueryString();
+    $stock = $query
+        ->groupBy('producto_id')
+        ->orderBy('producto_id')
+        ->paginate(15)
+        ->withQueryString();
 
-        // Dataset COMPLETO (sin paginar, sin filtros) para poblar los
-        // selects en cascada de los modales de Traslado/Ajuste. Es una
-        // consulta aparte de la tabla paginada a propósito: los modales
-        // deben poder operar sobre CUALQUIER stock, no solo el filtrado.
-        $stockCompleto = Stock::with(['producto:id,nombre,es_controlado', 'lote:id,numero_lote', 'ubicacion:id,nombre'])
-            ->whereHas('producto', fn($q) => $q->where('activo', true))
-            ->get()
-            ->map(fn($s) => [
-                'producto_id' => $s->producto_id,
-                'producto_nombre' => $s->producto?->nombre,
-                'es_controlado' => (bool) $s->producto?->es_controlado,
-                'lote_id' => $s->lote_id,
-                'lote_numero' => $s->lote?->numero_lote,
-                'ubicacion_id' => $s->ubicacion_id,
-                'ubicacion_nombre' => $s->ubicacion?->nombre,
-                'cantidad' => $s->cantidad,
-            ]);
-
-        return view('inventario.index', [
-            'stock' => $stock,
-            'stockCompleto' => $stockCompleto,
-            'productos' => Producto::activos()->orderBy('nombre')->get(),
-            'ubicaciones' => UbicacionAlmacen::where('activo', true)->get(),
-            'stockTotalUnidades' => Stock::whereHas('producto', fn($q) => $q->where('activo', true))->sum('cantidad'),
-            'stockCriticoCount' => $this->contarProductosStockCritico(),
-            'porVencerCount' => $this->contarLotesPorVencer(),
-            'vencidosCount' => $this->contarLotesVencidos(),
+    $stockCompleto = Stock::with([
+            'producto:id,nombre,es_controlado',
+            'lote:id,numero_lote',
+            'ubicacion:id,nombre'
+        ])
+        ->whereHas('producto', fn($q) => $q->where('activo', true))
+        ->get()
+        ->map(fn($s) => [
+            'producto_id' => $s->producto_id,
+            'producto_nombre' => $s->producto?->nombre,
+            'es_controlado' => (bool) $s->producto?->es_controlado,
+            'lote_id' => $s->lote_id,
+            'lote_numero' => $s->lote?->numero_lote,
+            'ubicacion_id' => $s->ubicacion_id,
+            'ubicacion_nombre' => $s->ubicacion?->nombre,
+            'cantidad' => $s->cantidad,
         ]);
-    }
+
+    return view('inventario.index', [
+        'stock' => $stock,
+        'stockCompleto' => $stockCompleto,
+        'productos' => Producto::activos()->orderBy('nombre')->get(),
+        'ubicaciones' => UbicacionAlmacen::where('activo', true)->get(),
+        'ubicacionesTabs' => $ubicacionesTabs,
+        'ubicacionActual' => $ubicacionActual,
+        'tipoActual' => $tipoActual,
+
+        'stockTotalUnidades' => Stock::where('ubicacion_id', $ubicacionActual->id)
+            ->whereHas('producto', fn($q) => $q->where('activo', true))
+            ->sum('cantidad'),
+
+        'stockCriticoCount' => $this->contarProductosStockCritico($ubicacionActual->id),
+        'porVencerCount' => $this->contarLotesPorVencer($ubicacionActual->id),
+        'vencidosCount' => $this->contarLotesVencidos($ubicacionActual->id),
+    ]);
+}
 
     // ===================== HELPERS PRIVADOS PARA LAS TARJETAS =====================
 
-    private function contarProductosStockCritico(): int
+    private function contarProductosStockCritico(int $ubicacionId): int
     {
         return Producto::activos()
-            ->withSum('stock as stock_total', 'cantidad')
+            ->whereHas('stock', fn($q) => $q->where('ubicacion_id', $ubicacionId))
+            ->withSum([
+                'stock as stock_total' => fn($q) => $q->where('ubicacion_id', $ubicacionId)
+            ], 'cantidad')
             ->get()
             ->filter(fn($p) => (int) $p->stock_total <= $p->stock_critico)
             ->count();
     }
 
-    private function contarLotesPorVencer(int $dias = 30): int
+    private function contarLotesPorVencer(int $ubicacionId, int $dias = 30): int
     {
         return Lote::where('estado', 'activo')
-            ->withSum('stock as stock_total', 'cantidad')
+            ->withSum([
+                'stock as stock_total' => fn($q) => $q->where('ubicacion_id', $ubicacionId)
+            ], 'cantidad')
             ->get()
-            ->filter(fn($l) => (int) $l->stock_total > 0
-                && $l->fecha_vencimiento->between(now(), now()->addDays($dias)))
+            ->filter(fn($l) =>
+                (int) $l->stock_total > 0 &&
+                $l->fecha_vencimiento->between(now(), now()->addDays($dias))
+            )
             ->count();
     }
 
-    private function contarLotesVencidos(): int
+    private function contarLotesVencidos(int $ubicacionId): int
     {
-        return Lote::withSum('stock as stock_total', 'cantidad')
+        return Lote::withSum([
+                'stock as stock_total' => fn($q) => $q->where('ubicacion_id', $ubicacionId)
+            ], 'cantidad')
             ->get()
-            ->filter(fn($l) => (int) $l->stock_total > 0 && $l->fecha_vencimiento->isPast())
+            ->filter(fn($l) =>
+                (int) $l->stock_total > 0 &&
+                $l->fecha_vencimiento->isPast()
+            )
             ->count();
     }
 
@@ -282,21 +326,45 @@ class InventarioController extends Controller
         if ($producto->es_controlado) {
             try {
                 DB::transaction(function () use ($producto, $lote, $ubicacion, $validated) {
+
                     $cantidadEsperada = Stock::where('producto_id', $producto->id)
                         ->where('lote_id', $lote->id)
                         ->where('ubicacion_id', $ubicacion->id)
                         ->sum('cantidad');
 
-                    $cantidadContada = $cantidadEsperada + $validated['diferencia'];
+                    $cantidadContada =
+                        $cantidadEsperada + $validated['diferencia'];
+
+                    if ($cantidadContada < 0) {
+                        throw new \Exception(
+                            'La cantidad contada no puede ser negativa.'
+                        );
+                    }
+
+                    $pendiente = DescuadreStockControlado::where('producto_id', $producto->id)
+                        ->where('lote_id', $lote->id)
+                        ->where('ubicacion_id', $ubicacion->id)
+                        ->whereIn('estado', ['registrado', 'investigado'])
+                        ->exists();
+
+                    if ($pendiente) {
+                        throw new \Exception(
+                            'Ya existe un descuadre pendiente para este producto, lote y ubicación.'
+                        );
+                    }
 
                     DescuadreStockControlado::create([
                         'producto_id' => $producto->id,
                         'lote_id' => $lote->id,
+                        'ubicacion_id' => $ubicacion->id,
+
                         'cantidad_esperada' => $cantidadEsperada,
                         'cantidad_contada' => $cantidadContada,
                         'diferencia' => $validated['diferencia'],
+
                         'fecha_inventario' => now(),
                         'usuario_id' => auth()->id(),
+
                         'estado' => 'registrado',
                         'explicacion' => $validated['motivo'],
                     ]);
@@ -304,8 +372,9 @@ class InventarioController extends Controller
 
                 return back()->with(
                     'success',
-                    'Producto controlado: el descuadre fue registrado para revisión del Químico Farmacéutico. El stock no se modificó todavía.'
+                    'El descuadre del medicamento controlado quedó pendiente de revisión por el Químico Farmacéutico.'
                 );
+
             } catch (\Throwable $e) {
                 return back()
                     ->withInput()

@@ -25,7 +25,7 @@ class UbicacionesSeeder extends Seeder
 
         UbicacionAlmacen::create([
             'nombre' => 'Bodega Frigorífica',
-            'tipo' => 'bodega',
+            'tipo' => 'frigorifica',
             'activo' => true,
         ]);
     }

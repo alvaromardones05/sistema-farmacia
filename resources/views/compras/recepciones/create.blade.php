@@ -26,10 +26,10 @@
         </div>
     @endif
 
-    <div class="alert alert-light border mb-4">
-        <i class="bi bi-box-arrow-in-down me-2"></i>
-        El stock recibido ingresará automáticamente a
-        <strong>{{ $bodega->nombre }}</strong>.
+    <div class="alert alert-info border mb-4">
+        <i class="bi bi-shield-check me-2"></i>
+        Esta recepción quedará <strong>pendiente de revisión</strong>.
+        El stock no ingresará al inventario hasta que sea aprobado.
     </div>
 
     <form method="POST" action="{{ route('compras.recepciones.store', $orden) }}">
@@ -184,8 +184,8 @@
             </a>
 
             <button type="submit" class="btn btn-primary">
-                <i class="bi bi-box-arrow-in-down me-1"></i>
-                Confirmar recepción
+                <i class="bi bi-clipboard-check me-1"></i>
+                Registrar recepción
             </button>
 
         </div>

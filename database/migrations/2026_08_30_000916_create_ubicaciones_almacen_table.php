@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('ubicaciones_almacen', function (Blueprint $table) {
             $table->id();
             $table->string('nombre', 100);
-            $table->enum('tipo', ['vitrina', 'bodega']);
+            $table->enum('tipo', ['vitrina', 'bodega', 'frigorifica']);
             $table->boolean('activo')->default(true);
             $table->timestamps();
         });

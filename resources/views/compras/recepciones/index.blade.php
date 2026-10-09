@@ -5,12 +5,10 @@
 @section('content')
 <div class="container-fluid px-0">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <p class="text-uppercase text-primary small fw-semibold mb-1">Compras / Recepciones</p>
-            <h1 class="h3 mb-1">Recepciones de mercadería</h1>
-            <p class="text-muted mb-0">Historial de ingresos de productos provenientes de compras.</p>
-        </div>
+    <div class="mb-4">
+        <p class="text-uppercase text-primary small fw-semibold mb-1">Compras / Recepciones</p>
+        <h1 class="h3 mb-1">Recepciones de mercadería</h1>
+        <p class="text-muted mb-3">Historial de ingresos de productos provenientes de compras.</p>
 
         <a href="{{ route('compras.index') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>

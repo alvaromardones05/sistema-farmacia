@@ -24,10 +24,15 @@
         </div>
     @endif
 
-    <div class="mb-3">
+    <div class="mb-3 d-flex gap-2">
         <a href="{{ route('compras.index') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>
             Volver a Compras
+        </a>
+        
+        <a href="{{ route('compras.proveedores.create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>
+            Nuevo proveedor
         </a>
     </div>
 

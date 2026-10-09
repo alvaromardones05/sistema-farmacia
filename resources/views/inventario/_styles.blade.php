@@ -430,4 +430,6 @@
     border-radius: 0.45rem;
     min-width: 70px;
 }
+
+
 </style>

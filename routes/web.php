@@ -13,6 +13,7 @@ use App\Http\Controllers\PacienteController;
 use App\Http\Controllers\OrdenCompraController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\RecepcionMercaderiaController;
+use App\Http\Controllers\DescuadreStockControladoController;
 
 
 // Página principal
@@ -89,29 +90,53 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware('role:Químico Farmacéutico|Técnico Farmacéutico')->group(function () {
 
-    Route::get('/ventas', [VentaController::class, 'index'])
-        ->name('ventas.index');
+        Route::get('/ventas', [VentaController::class, 'index'])
+            ->name('ventas.index');
 
-    Route::get('/ventas/crear', [VentaController::class, 'create'])
-        ->name('ventas.create');
+        Route::get('/ventas/crear', [VentaController::class, 'create'])
+            ->name('ventas.create');
 
-    Route::post('/ventas', [VentaController::class, 'store'])
-        ->name('ventas.store');
+        Route::post('/ventas', [VentaController::class, 'store'])
+            ->name('ventas.store');
 
-    Route::get('/ventas/reporte-diario', [VentaController::class, 'reporteDiario'])
-        ->name('ventas.reporte-diario');
+        Route::get('/ventas/reporte-diario', [VentaController::class, 'reporteDiario'])
+            ->name('ventas.reporte-diario');
 
-    Route::get('/ventas/{venta}/boleta', [VentaController::class, 'boleta'])
-        ->whereNumber('venta')
-        ->name('ventas.boleta');
+        Route::get('/ventas/{venta}/boleta', [VentaController::class, 'boleta'])
+            ->whereNumber('venta')
+            ->name('ventas.boleta');
 
-    Route::get('/ventas/{venta}', [VentaController::class, 'show'])
-        ->whereNumber('venta')
-        ->name('ventas.show');
+        Route::get('/ventas/{venta}', [VentaController::class, 'show'])
+            ->whereNumber('venta')
+            ->name('ventas.show');
 
-    Route::post('/ventas/{venta}/anular', [VentaController::class, 'anular'])
-        ->whereNumber('venta')
-        ->name('ventas.anular');
+        Route::post('/ventas/{venta}/anular', [VentaController::class, 'anular'])
+            ->whereNumber('venta')
+            ->name('ventas.anular'); });
+
+    
+    Route::middleware('role:Químico Farmacéutico')->group(function () {
+
+        Route::get(
+            '/descuadres-controlados',
+            [DescuadreStockControladoController::class, 'index']
+        )->name('descuadres-controlados.index');
+
+        Route::post(
+            '/descuadres-controlados/{descuadre}/aprobar',
+            [DescuadreStockControladoController::class, 'aprobar']
+        )
+            ->whereNumber('descuadre')
+            ->name('descuadres-controlados.aprobar');
+
+        Route::post(
+            '/descuadres-controlados/{descuadre}/rechazar',
+            [DescuadreStockControladoController::class, 'rechazar']
+        )
+            ->whereNumber('descuadre')
+            ->name('descuadres-controlados.rechazar');
+
+    });
 });
 
 
@@ -202,17 +227,20 @@ Route::middleware('permission:gestionar_stock')->group(function () {
 
 });
 
-    Route::middleware('permission:cerrar_caja')->group(function () {
+Route::middleware('permission:cerrar_caja')->group(function () {
 
-        Route::get('/caja', [AperturaCajaController::class, 'index'])
-            ->name('caja.index');
+    Route::get('/caja', [AperturaCajaController::class, 'index'])
+        ->name('caja.index');
 
-        Route::post('/caja/abrir', [AperturaCajaController::class, 'abrir'])
-            ->name('caja.abrir');
+    Route::get('/caja/historial', [AperturaCajaController::class, 'historial'])
+        ->name('caja.historial');
 
-        Route::post('/caja/{apertura}/cerrar', [AperturaCajaController::class, 'cerrar'])
-            ->name('caja.cerrar');
+    Route::post('/caja/abrir', [AperturaCajaController::class, 'abrir'])
+        ->name('caja.abrir');
 
+    Route::post('/caja/{apertura}/cerrar', [AperturaCajaController::class, 'cerrar'])
+        ->whereNumber('apertura')
+        ->name('caja.cerrar');
 });
 
 
@@ -247,6 +275,14 @@ Route::middleware('permission:gestionar_stock')->group(function () {
 
         Route::post('/compras', [OrdenCompraController::class, 'store'])
             ->name('compras.store');
+        
+        Route::post('/compras/recepciones/{recepcion}/aprobar', [RecepcionMercaderiaController::class, 'aprobar'])
+            ->whereNumber('recepcion')
+            ->name('compras.recepciones.aprobar');
+
+        Route::post('/compras/recepciones/{recepcion}/rechazar', [RecepcionMercaderiaController::class, 'rechazar'])
+            ->whereNumber('recepcion')
+            ->name('compras.recepciones.rechazar');
 
         Route::get('/compras/{orden}', [OrdenCompraController::class, 'show'])
             ->whereNumber('orden')
@@ -289,8 +325,6 @@ Route::middleware('permission:gestionar_stock')->group(function () {
         Route::post('/compras/{orden}/recibir', [RecepcionMercaderiaController::class, 'store'])
             ->whereNumber('orden')
             ->name('compras.recepciones.store');
-
-});
 
 
 // Autenticación de Breeze

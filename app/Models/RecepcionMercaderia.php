@@ -14,17 +14,21 @@ class RecepcionMercaderia extends Model
     protected $fillable = [
         'orden_compra_id',
         'usuario_id',
+        'revisado_por',
         'fecha_recepcion',
+        'fecha_revision',
         'numero_comprobante',
         'estado',
+        'tipo_recepcion',
+        'motivo_rechazo',
         'observaciones',
     ];
 
     protected $casts = [
         'fecha_recepcion' => 'datetime',
+        'fecha_revision' => 'datetime',
     ];
 
-    // Relaciones
     public function ordenCompra()
     {
         return $this->belongsTo(OrdenCompra::class, 'orden_compra_id');
@@ -35,8 +39,16 @@ class RecepcionMercaderia extends Model
         return $this->belongsTo(User::class, 'usuario_id');
     }
 
+    public function revisadoPor()
+    {
+        return $this->belongsTo(User::class, 'revisado_por');
+    }
+
     public function detalles()
     {
-        return $this->hasMany(RecepcionMercaderiaDetalle::class, 'recepcion_mercaderia_id');
+        return $this->hasMany(
+            RecepcionMercaderiaDetalle::class,
+            'recepcion_mercaderia_id'
+        );
     }
 }
