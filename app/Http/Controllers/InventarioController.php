@@ -71,6 +71,18 @@ class InventarioController extends Controller
         ->paginate(15)
         ->withQueryString();
 
+
+    $descuadresPendientes = DescuadreStockControlado::whereIn(
+        'estado',
+        ['registrado', 'investigado']
+    )
+    ->get()
+    ->keyBy(function ($descuadre) {
+        return $descuadre->producto_id . '-' .
+               $descuadre->lote_id . '-' .
+               $descuadre->ubicacion_id;
+    });
+
     $stockCompleto = Stock::with([
             'producto:id,nombre,es_controlado',
             'lote:id,numero_lote',
@@ -105,6 +117,7 @@ class InventarioController extends Controller
         'stockCriticoCount' => $this->contarProductosStockCritico($ubicacionActual->id),
         'porVencerCount' => $this->contarLotesPorVencer($ubicacionActual->id),
         'vencidosCount' => $this->contarLotesVencidos($ubicacionActual->id),
+        'descuadresPendientes' => $descuadresPendientes,
     ]);
 }
 
@@ -371,8 +384,8 @@ class InventarioController extends Controller
                 });
 
                 return back()->with(
-                    'success',
-                    'El descuadre del medicamento controlado quedó pendiente de revisión por el Químico Farmacéutico.'
+                    'info',
+                    'Solicitud de ajuste registrada correctamente. Al tratarse de un producto controlado, el cambio quedó pendiente de revisión y aprobación por el Químico Farmacéutico.'
                 );
 
             } catch (\Throwable $e) {
@@ -413,9 +426,10 @@ class InventarioController extends Controller
             });
 
             return back()->with(
-                'success',
-                'Ajuste registrado correctamente.'
-            );
+                    'success',
+                    'Ajuste de stock realizado correctamente.'
+                );
+                
         } catch (\Throwable $e) {
             return back()
                 ->withInput()

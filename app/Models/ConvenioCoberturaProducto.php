@@ -24,14 +24,13 @@ class ConvenioCoberturaProducto extends Model
         'copago_fijo' => 'decimal:2',
     ];
 
-    // Relaciones
     public function convenio()
     {
-        return $this->belongsTo(Convenio::class, 'convenio_id');
+        return $this->belongsTo(Convenio::class);
     }
 
     public function producto()
     {
-        return $this->belongsTo(Producto::class, 'producto_id');
+        return $this->belongsTo(Producto::class);
     }
 }

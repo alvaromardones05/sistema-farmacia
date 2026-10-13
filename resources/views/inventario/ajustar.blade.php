@@ -24,6 +24,20 @@
         </div>
     @endif
 
+    @if (session('success'))
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle me-2"></i>
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if (session('info'))
+        <div class="alert alert-warning">
+            <i class="bi bi-hourglass-split me-2"></i>
+            {{ session('info') }}
+        </div>
+    @endif
+
     <form action="{{ route('inventario.ajuste') }}" method="POST" class="card border-0 shadow-sm">
 
         @csrf
@@ -60,20 +74,12 @@
                         Lote *
                     </label>
 
-                    <select id="lote_id"
-                            name="lote_id"
+                    <select name="lote_id"
+                            id="lote_id"
                             class="form-select"
-                            required>
-
-                        <option value="">Seleccione un lote</option>
-
-                        @foreach ($lotes as $lote)
-                            <option value="{{ $lote->id }}"
-                                @selected(old('lote_id') == $lote->id)>
-                                {{ $lote->numero_lote }}
-                            </option>
-                        @endforeach
-
+                            required
+                            disabled>
+                        <option value="">Pawrimero selecciona un producto</option>
                     </select>
                 </div>
 
@@ -150,5 +156,73 @@
     </form>
 
 </div>
+
+@php
+    $lotesParaJs = $lotes->map(function ($lote) {
+        return [
+            'id' => $lote->id,
+            'producto_id' => $lote->producto_id,
+            'numero_lote' => $lote->numero_lote,
+        ];
+    })->values();
+@endphp
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const productoSelect = document.getElementById('producto_id');
+    const loteSelect = document.getElementById('lote_id');
+
+    const lotes = @json($lotesParaJs);
+    const loteAnterior = @json(old('lote_id'));
+
+    function cargarLotes() {
+        const productoId = productoSelect.value;
+
+        loteSelect.innerHTML = '';
+
+        if (!productoId) {
+            loteSelect.innerHTML =
+                '<option value="">Primero selecciona un producto</option>';
+
+            loteSelect.disabled = true;
+            return;
+        }
+
+        const relacionados = lotes.filter(
+            lote => String(lote.producto_id) === String(productoId)
+        );
+
+        if (relacionados.length === 0) {
+            loteSelect.innerHTML =
+                '<option value="">Este producto no tiene lotes activos</option>';
+
+            loteSelect.disabled = true;
+            return;
+        }
+
+        loteSelect.disabled = false;
+
+        loteSelect.innerHTML =
+            '<option value="">Seleccionar lote</option>';
+
+        relacionados.forEach(lote => {
+            const option = document.createElement('option');
+
+            option.value = lote.id;
+            option.textContent = lote.numero_lote;
+
+            if (String(lote.id) === String(loteAnterior)) {
+                option.selected = true;
+            }
+
+            loteSelect.appendChild(option);
+        });
+    }
+
+    productoSelect.addEventListener('change', cargarLotes);
+
+    cargarLotes();
+});
+</script>
 
 @endsection

@@ -143,6 +143,14 @@
 
                 </a>
 
+                @hasanyrole('Administrador|Químico Farmacéutico')
+                    <a href="{{ route('convenios.index') }}"
+                    class="nav-link {{ request()->routeIs('convenios.*') ? 'active' : '' }}">
+                        <i class="bi bi-card-checklist me-2"></i>
+                        Convenios
+                    </a>
+                @endhasanyrole
+
 
                 @role('Químico Farmacéutico')
                     <a href="{{ route('descuadres-controlados.index') }}"

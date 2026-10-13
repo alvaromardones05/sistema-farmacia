@@ -94,15 +94,32 @@
                     <div class="row g-3">
 
                         <div class="col-md-6">
-                            <label class="form-label">Paciente</label>
+                            <label
+                                for="paciente_id"
+                                class="form-label"
+                            >
+                                Paciente
+                            </label>
 
-                            <select name="paciente_id" class="form-select">
-                                <option value="">Venta libre / sin paciente</option>
+                            <select
+                                name="paciente_id"
+                                id="paciente_id"
+                                class="form-select"
+                            >
+                                <option
+                                    value=""
+                                    data-convenio-id=""
+                                >
+                                    Venta libre / sin paciente
+                                </option>
 
                                 @foreach ($pacientes as $paciente)
                                     <option
                                         value="{{ $paciente->id }}"
-                                        @selected(old('paciente_id') == $paciente->id)
+                                        data-convenio-id="{{ $paciente->convenio_id ?? '' }}"
+                                        @selected(
+                                            old('paciente_id') == $paciente->id 
+                                        )
                                     >
                                         {{ $paciente->nombreCompleto() }}
                                         ({{ $paciente->rut }})
@@ -111,21 +128,23 @@
                             </select>
                         </div>
 
+
                         <div class="col-md-6">
-                            <label class="form-label">Convenio (opcional)</label>
+                            <label class="form-label">
+                                Convenio
+                            </label>
 
-                            <select name="convenio_id" class="form-select">
-                                <option value="">Particular / sin convenio</option>
+                            <div
+                                id="convenio-actual"
+                                class="form-control bg-light"
+                            >
+                                Particular / sin convenio
+                            </div>
 
-                                @foreach ($convenios as $convenio)
-                                    <option
-                                        value="{{ $convenio->id }}"
-                                        @selected(old('convenio_id') == $convenio->id)
-                                    >
-                                        {{ $convenio->nombre }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <div class="form-text">
+                                El convenio se obtiene automáticamente
+                                desde el paciente seleccionado.
+                            </div>
                         </div>
 
                     </div>
@@ -153,27 +172,21 @@
 
                                     <option
                                         value="{{ $producto['id'] }}"
+
                                         data-nombre="{{ $producto['nombre'] }}"
+
                                         data-precio="{{ $producto['precio_neto'] }}"
+
                                         data-disponible="{{ $producto['disponible'] }}"
-                                        data-requiere-receta="{{ $producto['requiere_receta'] ? '1' : '0' }}"
+
+                                        data-requiere-receta="{{
+                                            $producto['requiere_receta'] ? '1' : '0'
+                                        }}"
+
                                         data-tipo-receta="{{ $producto['tipo_receta'] }}"
-                                        @if (!$producto['tiene_precio'] || $producto['disponible'] <= 0) disabled @endif
                                     >
                                         {{ $producto['nombre'] }}
                                         ({{ $producto['codigo'] }})
-
-                                        @if (!$producto['tiene_precio'])
-                                            — sin precio
-                                        @endif
-
-                                        @if ($producto['disponible'] <= 0)
-                                            — sin stock
-                                        @endif
-
-                                        @if ($producto['requiere_receta'])
-                                            — requiere receta
-                                        @endif
                                     </option>
 
                                 @endforeach
@@ -210,17 +223,19 @@
                         </div>
 
                         <div class="col-md-2">
-                            <label class="form-label">Descuento %</label>
+
+                            <label
+                                for="producto-beneficio"
+                                class="form-label" >
+                                Beneficio
+                            </label>
 
                             <input
-                                type="number"
-                                id="producto-descuento"
+                                type="text"
+                                id="producto-beneficio"
                                 class="form-control"
-                                min="0"
-                                max="100"
-                                value="0"
-                                disabled
-                            >
+                                value="Sin convenio"
+                                disabled >
                         </div>
 
                         <div class="col-md-1">
@@ -254,7 +269,7 @@
                                 <th>Producto</th>
                                 <th>Cantidad</th>
                                 <th>Precio unit.</th>
-                                <th>Desc. %</th>
+                                <th>Beneficio</th>
                                 <th>Subtotal neto</th>
                                 <th></th>
                             </tr>
@@ -355,204 +370,525 @@
         </form>
 
         <script>
-            let carrito = [];
+    let carrito = [];
 
-            const productoSelect = document.getElementById('producto-select');
-            const precioInput = document.getElementById('producto-precio');
-            const cantidadInput = document.getElementById('producto-cantidad');
-            const descuentoInput = document.getElementById('producto-descuento');
-            const disponibleSpan = document.getElementById('producto-disponible');
-            const btnAgregar = document.getElementById('btn-agregar');
+    const convenios = @json($conveniosParaJs);
 
-            productoSelect.addEventListener('change', function () {
-                const opcion = this.options[this.selectedIndex];
-                const habilitado = !!this.value;
+    const pacienteSelect =
+        document.getElementById('paciente_id');
 
-                if (!habilitado) {
-                    [precioInput, cantidadInput, descuentoInput, btnAgregar]
-                        .forEach(el => el.disabled = true);
+    const convenioActual =
+        document.getElementById('convenio-actual');
 
-                    precioInput.value = '';
-                    disponibleSpan.textContent = '—';
+    const productoSelect =
+        document.getElementById('producto-select');
 
-                    return;
-                }
+    const precioInput =
+        document.getElementById('producto-precio');
 
-                if (opcion.dataset.requiereReceta === '1') {
-                    alert(
-                        `El medicamento "${opcion.dataset.nombre}" requiere receta (${opcion.dataset.tipoReceta}) y no puede agregarse a una venta libre.`
-                    );
+    const cantidadInput =
+        document.getElementById('producto-cantidad');
 
-                    this.value = '';
+    const beneficioInput =
+        document.getElementById('producto-beneficio');
 
-                    [precioInput, cantidadInput, descuentoInput, btnAgregar]
-                        .forEach(el => el.disabled = true);
+    const disponibleSpan =
+        document.getElementById('producto-disponible');
 
-                    precioInput.value = '';
-                    disponibleSpan.textContent = '—';
+    const btnAgregar =
+        document.getElementById('btn-agregar');
 
-                    return;
-                }
 
-                precioInput.value = opcion.dataset.precio;
-                disponibleSpan.textContent = opcion.dataset.disponible;
+    function obtenerConvenioActual() {
+        const opcion =
+            pacienteSelect.options[
+                pacienteSelect.selectedIndex
+            ];
 
-                cantidadInput.max = opcion.dataset.disponible;
-                cantidadInput.value = 1;
+        const convenioId =
+            opcion?.dataset?.convenioId;
 
-                cantidadInput.disabled = false;
-                descuentoInput.disabled = false;
-                btnAgregar.disabled = false;
-            });
+        if (
+            !convenioId
+            || !convenios[convenioId]
+        ) {
+            return null;
+        }
 
-            btnAgregar.addEventListener('click', function () {
-                const opcion =
-                    productoSelect.options[productoSelect.selectedIndex];
+        return convenios[convenioId];
+    }
 
-                const cantidad =
-                    parseInt(cantidadInput.value || '0', 10);
 
-                const descuento =
-                    parseFloat(descuentoInput.value || '0');
+    /*
+     * Solo estimación visual.
+     * El servidor vuelve a calcular absolutamente todo.
+     */
+    function calcularEstimacion(
+        productoId,
+        precio
+    ) {
+        const convenio =
+            obtenerConvenioActual();
 
-                const precio =
-                    parseFloat(opcion.dataset.precio);
+        if (!convenio) {
+            return {
+                precioFinal: precio,
+                texto: 'Sin convenio'
+            };
+        }
 
-                const disponible =
-                    parseInt(opcion.dataset.disponible, 10);
+        const cobertura =
+            convenio.coberturas[
+                String(productoId)
+            ] ?? null;
 
-                if (!cantidad || cantidad < 1) {
-                    return;
-                }
+        if (cobertura) {
 
-                if (cantidad > disponible) {
-                    alert(
-                        'Cantidad supera el stock disponible en vitrina.'
-                    );
+            if (
+                cobertura.copago_fijo !== null
+                && Number(cobertura.copago_fijo) > 0
+            ) {
+                const copago = Math.min(
+                    precio,
+                    Number(cobertura.copago_fijo)
+                );
 
-                    return;
-                }
+                return {
+                    precioFinal: copago,
 
-                carrito.push({
-                    producto_id: productoSelect.value,
-                    nombre: opcion.dataset.nombre,
-                    cantidad: cantidad,
-                    precio: precio,
-                    descuento: descuento,
-                });
-
-                renderCarrito();
-
-                productoSelect.value = '';
-                productoSelect.dispatchEvent(new Event('change'));
-            });
-
-            function renderCarrito() {
-                const filas =
-                    document.getElementById('carrito-filas');
-
-                const ocultos =
-                    document.getElementById('detalles-ocultos');
-
-                filas.innerHTML = '';
-                ocultos.innerHTML = '';
-
-                if (carrito.length === 0) {
-                    filas.innerHTML = `
-                        <tr>
-                            <td colspan="6" class="text-center text-muted py-3">
-                                Aún no hay productos agregados.
-                            </td>
-                        </tr>
-                    `;
-
-                    document.getElementById('btn-confirmar').disabled = true;
-                    document.getElementById('total-aproximado').textContent = '0';
-
-                    return;
-                }
-
-                let total = 0;
-
-                carrito.forEach((item, index) => {
-                    const subtotal =
-                        item.precio *
-                        item.cantidad *
-                        (1 - item.descuento / 100);
-
-                    const totalConIva =
-                        subtotal * 1.19;
-
-                    total += totalConIva;
-
-                    const fila =
-                        document.createElement('tr');
-
-                    fila.innerHTML = `
-                        <td>${item.nombre}</td>
-                        <td>${item.cantidad}</td>
-                        <td>$${Math.round(item.precio).toLocaleString('es-CL')}</td>
-                        <td>${item.descuento}%</td>
-                        <td>$${Math.round(subtotal).toLocaleString('es-CL')}</td>
-                        <td>
-                            <button
-                                type="button"
-                                class="btn btn-sm btn-outline-danger"
-                                data-index="${index}"
-                            >
-                                Quitar
-                            </button>
-                        </td>
-                    `;
-
-                    filas.appendChild(fila);
-
-                    ['producto_id', 'cantidad', 'descuento']
-                        .forEach(campo => {
-
-                            const input =
-                                document.createElement('input');
-
-                            input.type = 'hidden';
-
-                            input.name =
-                                `detalles[${index}][${campo === 'descuento' ? 'descuento_pct' : campo}]`;
-
-                            input.value =
-                                item[campo];
-
-                            ocultos.appendChild(input);
-                        });
-                });
-
-                document
-                    .getElementById('total-aproximado')
-                    .textContent =
-                        Math.round(total)
-                            .toLocaleString('es-CL');
-
-                document.getElementById('btn-confirmar').disabled = false;
+                    texto:
+                        'Copago fijo $'
+                        + Math.round(copago)
+                            .toLocaleString('es-CL')
+                };
             }
 
-            document
-                .getElementById('carrito-filas')
-                .addEventListener('click', function (e) {
+            if (
+                cobertura.copago_pct !== null
+            ) {
+                const copagoPct = Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        Number(
+                            cobertura.copago_pct
+                        )
+                    )
+                );
 
-                    const boton =
-                        e.target.closest('button[data-index]');
+                return {
+                    precioFinal:
+                        precio
+                        * (copagoPct / 100),
 
-                    if (!boton) {
-                        return;
-                    }
+                    texto:
+                        `Copago ${copagoPct}%`
+                };
+            }
+        }
 
-                    carrito.splice(
-                        parseInt(boton.dataset.index, 10),
-                        1
+        const descuento = Math.max(
+            0,
+            Math.min(
+                100,
+                Number(
+                    convenio.descuento_pct ?? 0
+                )
+            )
+        );
+
+        return {
+            precioFinal:
+                precio
+                * (1 - descuento / 100),
+
+            texto:
+                descuento > 0
+                    ? `${descuento}% descuento`
+                    : 'Sin descuento'
+        };
+    }
+
+
+    function actualizarConvenio() {
+        const convenio =
+            obtenerConvenioActual();
+
+        convenioActual.textContent =
+            convenio
+                ? convenio.nombre
+                : 'Particular / sin convenio';
+
+        actualizarProductoSeleccionado();
+
+        /*
+         * Si cambia el paciente, cambia también
+         * la estimación de los productos agregados.
+         */
+        renderCarrito();
+    }
+
+
+    function actualizarProductoSeleccionado() {
+        const opcion =
+            productoSelect.options[
+                productoSelect.selectedIndex
+            ];
+
+        if (!productoSelect.value) {
+            precioInput.value = '';
+
+            beneficioInput.value =
+                'Sin convenio';
+
+            disponibleSpan.textContent =
+                '—';
+
+            cantidadInput.disabled =
+                true;
+
+            btnAgregar.disabled =
+                true;
+
+            return;
+        }
+
+        if (
+            opcion.dataset.requiereReceta
+            === '1'
+        ) {
+            alert(
+                `El medicamento "${opcion.dataset.nombre}" requiere receta (${opcion.dataset.tipoReceta}) y no puede agregarse a una venta libre.`
+            );
+
+            productoSelect.value = '';
+
+            actualizarProductoSeleccionado();
+
+            return;
+        }
+
+        const precio =
+            Number(opcion.dataset.precio);
+
+        const estimacion =
+            calcularEstimacion(
+                productoSelect.value,
+                precio
+            );
+
+        precioInput.value =
+            Math.round(precio)
+                .toLocaleString('es-CL');
+
+        beneficioInput.value =
+            estimacion.texto;
+
+        disponibleSpan.textContent =
+            opcion.dataset.disponible;
+
+        cantidadInput.max =
+            opcion.dataset.disponible;
+
+        cantidadInput.value = 1;
+
+        cantidadInput.disabled =
+            false;
+
+        btnAgregar.disabled =
+            false;
+    }
+
+
+    btnAgregar.addEventListener(
+        'click',
+        function () {
+
+            if (!productoSelect.value) {
+                return;
+            }
+
+            const opcion =
+                productoSelect.options[
+                    productoSelect.selectedIndex
+                ];
+
+            const productoId =
+                String(productoSelect.value);
+
+            const cantidad =
+                Number(cantidadInput.value);
+
+            const disponible =
+                Number(
+                    opcion.dataset.disponible
+                );
+
+            const precio =
+                Number(opcion.dataset.precio);
+
+            if (
+                !Number.isInteger(cantidad)
+                || cantidad < 1
+            ) {
+                return;
+            }
+
+            /*
+             * Si el producto ya está en el carrito,
+             * aumentamos la cantidad en vez de duplicarlo.
+             */
+            const existente =
+                carrito.find(
+                    item =>
+                        item.producto_id
+                        === productoId
+                );
+
+            const cantidadTotal =
+                cantidad
+                + (existente?.cantidad ?? 0);
+
+            if (
+                cantidadTotal > disponible
+            ) {
+                alert(
+                    'La cantidad supera el stock disponible en vitrina.'
+                );
+
+                return;
+            }
+
+            if (existente) {
+                existente.cantidad =
+                    cantidadTotal;
+
+            } else {
+                carrito.push({
+                    producto_id:
+                        productoId,
+
+                    nombre:
+                        opcion.dataset.nombre,
+
+                    cantidad:
+                        cantidad,
+
+                    precio:
+                        precio,
+                });
+            }
+
+            renderCarrito();
+
+            productoSelect.value = '';
+
+            actualizarProductoSeleccionado();
+        }
+    );
+
+
+    function renderCarrito() {
+        const filas =
+            document.getElementById(
+                'carrito-filas'
+            );
+
+        const ocultos =
+            document.getElementById(
+                'detalles-ocultos'
+            );
+
+        const btnConfirmar =
+            document.getElementById(
+                'btn-confirmar'
+            );
+
+        const totalAproximado =
+            document.getElementById(
+                'total-aproximado'
+            );
+
+        filas.innerHTML = '';
+        ocultos.innerHTML = '';
+
+        if (carrito.length === 0) {
+            filas.innerHTML = `
+                <tr>
+                    <td
+                        colspan="6"
+                        class="text-center text-muted py-3"
+                    >
+                        Aún no hay productos agregados.
+                    </td>
+                </tr>
+            `;
+
+            btnConfirmar.disabled =
+                true;
+
+            totalAproximado.textContent =
+                '0';
+
+            return;
+        }
+
+        let total = 0;
+
+        carrito.forEach(
+            (item, index) => {
+
+                const estimacion =
+                    calcularEstimacion(
+                        item.producto_id,
+                        item.precio
                     );
 
-                    renderCarrito();
-                });
-        </script>
+                const subtotalNeto =
+                    estimacion.precioFinal
+                    * item.cantidad;
+
+                const totalConIva =
+                    subtotalNeto * 1.19;
+
+                total += totalConIva;
+
+                const fila =
+                    document.createElement('tr');
+
+                fila.innerHTML = `
+                    <td>
+                        ${item.nombre}
+                    </td>
+
+                    <td>
+                        ${item.cantidad}
+                    </td>
+
+                    <td>
+                        $${Math.round(item.precio)
+                            .toLocaleString('es-CL')}
+                    </td>
+
+                    <td>
+                        <span
+                            class="badge text-bg-light border"
+                        >
+                            ${estimacion.texto}
+                        </span>
+                    </td>
+
+                    <td>
+                        $${Math.round(subtotalNeto)
+                            .toLocaleString('es-CL')}
+                    </td>
+
+                    <td>
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            data-index="${index}"
+                        >
+                            Quitar
+                        </button>
+                    </td>
+                `;
+
+                filas.appendChild(fila);
+
+
+                /*
+                 * ESTO ES TODO LO QUE EL POST
+                 * ENVÍA POR PRODUCTO.
+                 */
+                const productoInput =
+                    document.createElement(
+                        'input'
+                    );
+
+                productoInput.type =
+                    'hidden';
+
+                productoInput.name =
+                    `detalles[${index}][producto_id]`;
+
+                productoInput.value =
+                    item.producto_id;
+
+                ocultos.appendChild(
+                    productoInput
+                );
+
+
+                const cantidadOculta =
+                    document.createElement(
+                        'input'
+                    );
+
+                cantidadOculta.type =
+                    'hidden';
+
+                cantidadOculta.name =
+                    `detalles[${index}][cantidad]`;
+
+                cantidadOculta.value =
+                    item.cantidad;
+
+                ocultos.appendChild(
+                    cantidadOculta
+                );
+            }
+        );
+
+        totalAproximado.textContent =
+            Math.round(total)
+                .toLocaleString('es-CL');
+
+        btnConfirmar.disabled =
+            false;
+    }
+
+
+    document
+        .getElementById('carrito-filas')
+        .addEventListener(
+            'click',
+            function (event) {
+
+                const boton =
+                    event.target.closest(
+                        'button[data-index]'
+                    );
+
+                if (!boton) {
+                    return;
+                }
+
+                carrito.splice(
+                    Number(
+                        boton.dataset.index
+                    ),
+                    1
+                );
+
+                renderCarrito();
+            }
+        );
+
+
+    pacienteSelect.addEventListener(
+        'change',
+        actualizarConvenio
+    );
+
+    productoSelect.addEventListener(
+        'change',
+        actualizarProductoSeleccionado
+    );
+
+
+    actualizarConvenio();
+</script>
 
     @endif
 

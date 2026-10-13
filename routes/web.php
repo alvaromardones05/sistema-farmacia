@@ -14,6 +14,7 @@ use App\Http\Controllers\OrdenCompraController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\RecepcionMercaderiaController;
 use App\Http\Controllers\DescuadreStockControladoController;
+use App\Http\Controllers\ConvenioController;
 
 
 // Página principal
@@ -136,6 +137,41 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereNumber('descuadre')
             ->name('descuadres-controlados.rechazar');
 
+    });
+
+    Route::middleware('role:Administrador|Químico Farmacéutico')->group(function () {
+
+        Route::get('/convenios', [ConvenioController::class, 'index'])
+            ->name('convenios.index');
+
+        Route::get('/convenios/crear', [ConvenioController::class, 'create'])
+            ->name('convenios.create');
+
+        Route::post('/convenios', [ConvenioController::class, 'store'])
+            ->name('convenios.store');
+
+        Route::get('/convenios/{convenio}/editar', [ConvenioController::class, 'edit'])
+            ->whereNumber('convenio')
+            ->name('convenios.edit');
+
+        Route::put('/convenios/{convenio}', [ConvenioController::class, 'update'])
+            ->whereNumber('convenio')
+            ->name('convenios.update');
+
+        Route::post(
+            '/convenios/{convenio}/coberturas',
+            [ConvenioController::class, 'guardarCobertura']
+        )
+            ->whereNumber('convenio')
+            ->name('convenios.coberturas.store');
+
+        Route::delete(
+            '/convenios/{convenio}/coberturas/{cobertura}',
+            [ConvenioController::class, 'eliminarCobertura']
+        )
+            ->whereNumber('convenio')
+            ->whereNumber('cobertura')
+            ->name('convenios.coberturas.destroy');
     });
 });
 

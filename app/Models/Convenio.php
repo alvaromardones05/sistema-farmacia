@@ -25,7 +25,6 @@ class Convenio extends Model
         'activo' => 'boolean',
     ];
 
-    // Relaciones
     public function pacientes()
     {
         return $this->hasMany(Paciente::class, 'convenio_id');
@@ -33,7 +32,10 @@ class Convenio extends Model
 
     public function coberturas()
     {
-        return $this->hasMany(ConvenioCoberturaProducto::class, 'convenio_id');
+        return $this->hasMany(
+            ConvenioCoberturaProducto::class,
+            'convenio_id'
+        );
     }
 
     public function ventas()
@@ -41,7 +43,6 @@ class Convenio extends Model
         return $this->hasMany(Venta::class, 'convenio_id');
     }
 
-    // Scopes
     public function scopeActivos($query)
     {
         return $query->where('activo', true);

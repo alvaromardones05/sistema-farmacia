@@ -10,13 +10,30 @@ return new class extends Migration
     {
         Schema::create('convenio_cobertura_producto', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('convenio_id')->constrained('convenios')->onDelete('cascade');
-            $table->foreignId('producto_id')->constrained('productos')->onDelete('cascade');
-            $table->decimal('copago_pct', 5, 2)->default(0);
-            $table->decimal('copago_fijo', 12, 2)->default(0);
+
+            $table->foreignId('convenio_id')
+                ->constrained('convenios')
+                ->onDelete('cascade');
+
+            $table->foreignId('producto_id')
+                ->constrained('productos')
+                ->onDelete('cascade');
+
+            // Porcentaje que paga el paciente.
+            // 0 = cobertura 100%, 100 = sin cobertura.
+            $table->decimal('copago_pct', 5, 2)->default(100);
+
+            // Si existe, reemplaza al porcentaje.
+            $table->decimal('copago_fijo', 12, 2)->nullable();
+
             $table->text('observaciones')->nullable();
+
             $table->timestamps();
-            $table->unique(['convenio_id', 'producto_id']);
+
+            $table->unique([
+                'convenio_id',
+                'producto_id'
+            ]);
         });
     }
 

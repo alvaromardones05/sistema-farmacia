@@ -11,11 +11,6 @@
             <h1 class="h3 mb-1">Proveedores</h1>
             <p class="text-muted mb-0">Administración de proveedores de la farmacia.</p>
         </div>
-
-        <a href="{{ route('compras.proveedores.create') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i>
-            Nuevo proveedor
-        </a>
     </div>
 
     @if(session('success'))

@@ -333,6 +333,12 @@
                             $critico = $s->producto?->stock_critico ?? 0;
                             $minimo = $s->producto?->stock_minimo ?? 0;
 
+                            $descuadrePendiente = ($descuadresPendientes ?? collect())
+                                ->first(function ($descuadre) use ($s, $ubicacionActual) {
+                                    return (int) $descuadre->producto_id === (int) $s->producto_id
+                                        && (int) $descuadre->ubicacion_id === (int) $ubicacionActual->id;
+                                });
+
                             if ($cantidad <= 0) {
                                 [$estadoTexto, $estadoBadge] = ['Agotado', 'secondary'];
                             } elseif ($cantidad <= $critico) {
@@ -376,9 +382,28 @@
                             </td>
 
                             <td class="text-center">
-                                <span class="badge text-bg-{{ $estadoBadge }}">
-                                    {{ $estadoTexto }}
-                                </span>
+
+                                @if($descuadrePendiente)
+
+                                    <span class="badge text-bg-warning">
+                                        <i class="bi bi-hourglass-split me-1"></i>
+                                        Pendiente de aprobación
+                                    </span>
+
+                                    <div class="small text-muted mt-1">
+                                        Ajuste:
+                                        {{ $descuadrePendiente->diferencia > 0 ? '+' : '' }}
+                                        {{ $descuadrePendiente->diferencia }} uds
+                                    </div>
+
+                                @else
+
+                                    <span class="badge text-bg-{{ $estadoBadge }}">
+                                        {{ $estadoTexto }}
+                                    </span>
+
+                                @endif
+
                             </td>
 
                             <td class="text-end">
