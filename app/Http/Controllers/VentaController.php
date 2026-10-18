@@ -146,6 +146,8 @@ class VentaController extends Controller
                         'requiere_receta' => (bool) $producto->requiere_receta,
 
                         'tipo_receta' => $producto->tipo_receta,
+
+                        'codigo_barra' => $producto->codigo_barra,
                     ];
                 })
 

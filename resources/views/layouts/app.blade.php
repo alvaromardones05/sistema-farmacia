@@ -198,7 +198,7 @@
 
 
                 <!-- PRODUCTOS -->
-                @hasanyrole('Químico Farmacéutico|Técnico Farmacéutico|Bodeguero')
+                @hasanyrole('Químico Farmacéutico|Técnico Farmacéutico')
 
                     <a
                         href="{{ route('productos.index') }}"

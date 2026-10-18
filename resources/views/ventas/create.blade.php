@@ -161,8 +161,22 @@
 
                     <div class="row g-3 align-items-end">
 
+                        
+
                         <div class="col-md-5">
                             <label class="form-label">Producto</label>
+
+                            <div class="mb-3">
+                                <label for="codigo-barra" class="form-label">Código de barras</label>
+
+                                <input
+                                    type="text"
+                                    id="codigo-barra"
+                                    class="form-control"
+                                    placeholder="Escanear producto..."
+                                    autocomplete="off"
+                                >
+                            </div>
 
                             <select id="producto-select" class="form-select">
 
@@ -175,6 +189,8 @@
 
                                         data-nombre="{{ $producto['nombre'] }}"
 
+                                        data-codigo-barra="{{ $producto['codigo_barra'] }}"
+
                                         data-precio="{{ $producto['precio_neto'] }}"
 
                                         data-disponible="{{ $producto['disponible'] }}"
@@ -184,9 +200,12 @@
                                         }}"
 
                                         data-tipo-receta="{{ $producto['tipo_receta'] }}"
+                                        
                                     >
                                         {{ $producto['nombre'] }}
                                         ({{ $producto['codigo'] }})
+
+                                        
                                     </option>
 
                                 @endforeach
@@ -383,6 +402,8 @@
     const productoSelect =
         document.getElementById('producto-select');
 
+    const codigoBarraInput = document.getElementById('codigo-barra');
+
     const precioInput =
         document.getElementById('producto-precio');
 
@@ -417,7 +438,42 @@
 
         return convenios[convenioId];
     }
+    
 
+    codigoBarraInput.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter') {
+            return;
+        }
+
+        event.preventDefault();
+
+        const codigo = String(this.value).trim();
+
+        if (!codigo) {
+            return;
+        }
+
+        const opcion = Array.from(productoSelect.options).find(option => {
+            const codigoProducto = String(
+                option.dataset.codigoBarra || ''
+            ).trim();
+
+            return codigoProducto === codigo;
+        });
+
+        if (!opcion) {
+            alert(`No se encontró un producto con el código ${codigo}.`);
+            this.select();
+            return;
+        }
+
+        productoSelect.value = opcion.value;
+
+        actualizarProductoSeleccionado();
+
+        this.value = '';
+        this.focus();
+    });
 
     /*
      * Solo estimación visual.
