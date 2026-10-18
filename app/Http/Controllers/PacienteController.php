@@ -52,6 +52,11 @@ class PacienteController extends Controller
 
         $paciente = Paciente::create($validated);
 
+        if ($request->input('origen') === 'venta') {
+            return redirect()->route('ventas.create', ['paciente_id' => $paciente->id])
+                ->with('success', 'Paciente registrado exitosamente.');
+        }
+
         return redirect()->route('pacientes.show', $paciente)
             ->with('success', 'Paciente registrado exitosamente.');
     }

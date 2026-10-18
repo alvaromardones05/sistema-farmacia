@@ -174,7 +174,7 @@
         @endif
     </p>
 
-    <<p>
+    <p>
         <strong>Vendedor:</strong>
         {{ $venta->usuario?->name }} {{ $venta->usuario?->apellidos }}
     </p>
