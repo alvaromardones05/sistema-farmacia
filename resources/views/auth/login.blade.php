@@ -1,639 +1,509 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Farmacia</title>
-    
-    {{-- Bootstrap CSS --}}
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    {{-- Bootstrap Icons --}}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    
-    {{-- Google Fonts --}}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    {{-- Estilos personalizados --}}
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Iniciar sesión | Sistema de Farmacia</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
     <style>
-        /* =====================================================
-   VARIABLES
-====================================================== */
-:root {
-    --mint-900: #064e3b;
-    --mint-700: #047857;
-    --mint-600: #059669;
-    --mint-500: #10b981;
-    --mint-400: #34d399;
-    --mint-300: #6ee7b7;
-    --mint-100: #d1fae5;
-    --mint-50: #ecfdf5;
+        * {
+            box-sizing: border-box;
+        }
 
-    --azul-900: #0c4a6e;
-    --azul-700: #0369a1;
-    --azul-600: #0284c7;
-    --azul-500: #0ea5e9;
-    --azul-100: #e0f2fe;
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #10213f;
+        }
 
-    --gris-900: #0f172a;
-    --gris-700: #334155;
-    --gris-600: #475569;
-    --gris-500: #64748b;
-    --gris-400: #94a3b8;
-    --gris-300: #cbd5e1;
-    --gris-200: #e2e8f0;
-    --gris-100: #f1f5f9;
-    --gris-50: #f8fafc;
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            position: relative;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 15% 15%, rgba(191, 219, 254, .65), transparent 32%),
+                radial-gradient(circle at 82% 75%, rgba(219, 234, 254, .8), transparent 35%),
+                linear-gradient(135deg, #f8fbff 0%, #eef6ff 48%, #f8fbff 100%);
+        }
 
-    --blanco: #ffffff;
-    --transicion: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-}
+        /* Fondo difuminado estilo farmacia */
+        .login-page::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: .6;
+            background:
+                linear-gradient(90deg,
+                    transparent 0 8%,
+                    rgba(140, 190, 230, .14) 8% 9%,
+                    transparent 9% 23%,
+                    rgba(140, 190, 230, .12) 23% 24%,
+                    transparent 24% 78%,
+                    rgba(140, 190, 230, .12) 78% 79%,
+                    transparent 79% 100%
+                ),
+                repeating-linear-gradient(
+                    0deg,
+                    transparent 0 95px,
+                    rgba(108, 164, 211, .08) 95px 101px
+                );
+            filter: blur(2px);
+        }
 
-/* =====================================================
-   BASE
-====================================================== */
-* {
-    box-sizing: border-box;
-}
+        .login-page::after {
+            content: "";
+            position: absolute;
+            width: 850px;
+            height: 850px;
+            border-radius: 50%;
+            top: -560px;
+            right: -230px;
+            background: rgba(191, 219, 254, .32);
+        }
 
-body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
-    margin: 0;
-    color: var(--gris-700);
-    position: relative;
-    overflow-x: hidden;
+        .login-card {
+            width: 100%;
+            max-width: 610px;
+            position: relative;
+            z-index: 2;
+            background: rgba(255, 255, 255, .97);
+            border-radius: 22px;
+            overflow: hidden;
+            box-shadow:
+                0 28px 80px rgba(37, 99, 235, .13),
+                0 4px 20px rgba(15, 23, 42, .05);
+            border: 1px solid rgba(226, 232, 240, .8);
+        }
 
-    /* Fondo limpio con gradiente suave mint/azul */
-    background:
-        radial-gradient(ellipse at top left, rgba(16, 185, 129, 0.15), transparent 50%),
-        radial-gradient(ellipse at bottom right, rgba(14, 165, 233, 0.15), transparent 50%),
-        linear-gradient(180deg, #f0fdfa 0%, #f0f9ff 100%);
-    background-attachment: fixed;
-}
+        .login-content {
+            padding: 52px 52px 30px;
+        }
 
-/* Retícula suave de fondo (estilo clínico) */
-body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background-image:
-        linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
-    mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
-    -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
-}
+        .brand {
+            text-align: center;
+            margin-bottom: 30px;
+        }
 
-/* Círculo decorativo mint flotante arriba */
-body::after {
-    content: "";
-    position: fixed;
-    top: -180px;
-    right: -180px;
-    width: 450px;
-    height: 450px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(52, 211, 153, 0.35), transparent 70%);
-    filter: blur(60px);
-    pointer-events: none;
-    z-index: 0;
-    animation: pulseMint 8s ease-in-out infinite;
-}
+        .brand-logo {
+            width: 96px;
+            height: 96px;
+            margin: 0 auto 20px;
+            position: relative;
+        }
 
-@keyframes pulseMint {
-    0%, 100% { transform: scale(1); opacity: 0.9; }
-    50%      { transform: scale(1.15); opacity: 0.7; }
-}
+        .cross {
+            position: absolute;
+            width: 92px;
+            height: 34px;
+            background: linear-gradient(135deg, #08a4e8, #1479e9);
+            border-radius: 9px;
+            top: 29px;
+            left: 2px;
+        }
 
-/* =====================================================
-   TARJETA DE LOGIN
-====================================================== */
-.login-container {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    max-width: 420px;
-    padding: 50px 42px 42px;
+        .cross::before {
+            content: "";
+            position: absolute;
+            width: 34px;
+            height: 92px;
+            background: linear-gradient(135deg, #08a4e8, #1479e9);
+            border-radius: 9px;
+            top: -29px;
+            left: 29px;
+        }
 
-    background: var(--blanco);
-    border-radius: 24px;
-    border: 1px solid rgba(226, 232, 240, 0.8);
+        .leaf {
+            position: absolute;
+            width: 56px;
+            height: 33px;
+            right: 0;
+            bottom: 8px;
+            background: linear-gradient(135deg, #16c8b4, #00a7c7);
+            border-radius: 100% 0 100% 0;
+            transform: rotate(-15deg);
+            box-shadow: 0 3px 8px rgba(16, 185, 170, .18);
+        }
 
-    box-shadow:
-        0 1px 2px rgba(15, 23, 42, 0.04),
-        0 12px 32px rgba(15, 23, 42, 0.08),
-        0 32px 64px rgba(15, 23, 42, 0.06);
+        .leaf::after {
+            content: "";
+            position: absolute;
+            width: 48px;
+            height: 2px;
+            background: rgba(255,255,255,.95);
+            left: 6px;
+            top: 17px;
+            transform: rotate(-25deg);
+            transform-origin: left;
+        }
 
-    animation: cardRise 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
+        .brand h1 {
+            margin: 0;
+            font-size: 2.05rem;
+            line-height: 1.15;
+            font-weight: 750;
+            letter-spacing: -.035em;
+            color: #10213f;
+        }
 
-@keyframes cardRise {
-    from {
-        opacity: 0;
-        transform: translateY(24px) scale(0.97);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
+        .brand h1 span {
+            color: #1477e8;
+        }
 
-/* Icono circular flotante arriba del header (estilo pastilla) */
-.login-container::before {
-    content: "💊";
-    position: absolute;
-    top: -34px;
-    left: 50%;
-    transform: translateX(-50%);
+        .brand p {
+            margin: 10px 0 0;
+            font-size: 1.05rem;
+            color: #7686a1;
+        }
 
-    width: 68px;
-    height: 68px;
-    border-radius: 50%;
+        .divider {
+            height: 1px;
+            background: #e7edf5;
+            margin: 28px 0 30px;
+        }
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 30px;
+        .form-label {
+            font-weight: 650;
+            margin-bottom: 9px;
+            color: #13213d;
+        }
 
-    background: linear-gradient(135deg, var(--mint-500) 0%, var(--azul-500) 100%);
-    box-shadow:
-        0 8px 24px rgba(16, 185, 129, 0.35),
-        0 0 0 6px var(--blanco),
-        0 0 0 8px rgba(16, 185, 129, 0.12);
-    animation: pillFloat 3.5s ease-in-out infinite;
-}
+        .input-wrap {
+            position: relative;
+        }
 
-@keyframes pillFloat {
-    0%, 100% { transform: translateX(-50%) translateY(0) rotate(-8deg); }
-    50%      { transform: translateX(-50%) translateY(-6px) rotate(8deg); }
-}
+        .input-wrap .input-icon {
+            position: absolute;
+            left: 17px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #7b8da9;
+            font-size: 1.15rem;
+            pointer-events: none;
+        }
 
-/* =====================================================
-   HEADER
-====================================================== */
-.login-header {
-    text-align: center;
-    margin-bottom: 34px;
-    padding-top: 6px;
-}
+        .form-control {
+            height: 58px;
+            border-radius: 10px;
+            border: 1px solid #cfd9e7;
+            padding-left: 52px;
+            padding-right: 48px;
+            font-size: 1rem;
+            color: #17233d;
+            box-shadow: none;
+            transition: .18s ease;
+        }
 
-.login-header h1 {
-    font-size: 26px;
-    font-weight: 800;
-    letter-spacing: -0.6px;
-    margin-bottom: 8px;
-    color: var(--gris-900);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-}
+        .form-control::placeholder {
+            color: #94a3b8;
+        }
 
-.login-header h1::after {
-    content: "";
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--mint-500);
-    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
-    animation: dotPulse 2s ease-in-out infinite;
-}
+        .form-control:focus {
+            border-color: #2681ed;
+            box-shadow: 0 0 0 4px rgba(37, 128, 237, .10);
+        }
 
-@keyframes dotPulse {
-    0%, 100% { transform: scale(1); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15); }
-    50%      { transform: scale(1.15); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.08); }
-}
+        .password-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 0;
+            background: transparent;
+            color: #7587a3;
+            font-size: 1.2rem;
+            padding: 4px;
+        }
 
-.login-header p {
-    color: var(--gris-500);
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-    margin: 0;
-}
+        .remember-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            margin: 21px 0 25px;
+        }
 
-/* =====================================================
-   ALERTAS
-====================================================== */
-.alert-danger {
-    background: #fef2f2;
-    border: none;
-    border-left: 4px solid #ef4444;
-    color: #991b1b;
-    border-radius: 10px;
-    font-size: 0.85rem;
-    padding: 12px 14px;
-    margin-bottom: 20px;
-}
+        .form-check {
+            margin: 0;
+        }
 
-.alert-danger strong {
-    color: #7f1d1d;
-    font-size: 0.87rem;
-}
+        .form-check-input {
+            width: 20px;
+            height: 20px;
+            margin-top: .1em;
+            border: 1px solid #8da0bb;
+        }
 
-.alert-danger ul {
-    padding-left: 1.1rem;
-    margin-bottom: 0;
-    font-size: 0.83rem;
-}
+        .form-check-label {
+            margin-left: 5px;
+            color: #13213d;
+        }
 
-/* =====================================================
-   FORMULARIO
-====================================================== */
-.form-label {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    color: var(--gris-700);
-    font-weight: 600;
-    font-size: 0.82rem;
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
-    margin-bottom: 0.5rem;
-}
+        .forgot-link,
+        .back-link {
+            color: #0875ee;
+            text-decoration: none;
+            font-weight: 550;
+        }
 
-.form-control {
-    background: var(--gris-50);
-    border: 1.5px solid transparent;
-    color: var(--gris-900);
-    border-radius: 12px;
-    padding: 0.75rem 1rem;
-    font-size: 0.92rem;
-    font-weight: 500;
-    transition: var(--transicion);
-    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
-}
+        .forgot-link:hover,
+        .back-link:hover {
+            text-decoration: underline;
+        }
 
-.form-control::placeholder {
-    color: var(--gris-400);
-    font-weight: 400;
-}
+        .btn-login {
+            width: 100%;
+            height: 62px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #147cf3, #0769e8);
+            color: white;
+            font-size: 1.16rem;
+            font-weight: 650;
+            box-shadow: 0 9px 24px rgba(7, 105, 232, .18);
+            transition: .18s ease;
+        }
 
-.form-control:hover {
-    background: var(--gris-100);
-}
+        .btn-login:hover {
+            background: linear-gradient(135deg, #0c72e7, #055ecf);
+            transform: translateY(-1px);
+        }
 
-.form-control:focus {
-    background: var(--blanco);
-    border-color: var(--mint-500);
-    color: var(--gris-900);
-    box-shadow:
-        0 0 0 4px rgba(16, 185, 129, 0.12),
-        inset 0 1px 2px rgba(15, 23, 42, 0.03);
-    outline: none;
-}
+        .btn-login:active {
+            transform: translateY(0);
+        }
 
-.form-control.is-invalid {
-    background: #fef2f2;
-    border-color: #ef4444;
-}
+        .back-area {
+            text-align: center;
+            border-top: 1px solid #e7edf5;
+            margin-top: 27px;
+            padding-top: 27px;
+        }
 
-.form-control.is-invalid:focus {
-    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
-}
+        .back-link i {
+            margin-right: 8px;
+        }
 
-.invalid-feedback {
-    color: #dc2626;
-    font-size: 0.78rem;
-    font-weight: 500;
-    margin-top: 0.35rem;
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-}
+        .login-footer {
+            background: #f8fafc;
+            border-top: 1px solid #edf1f6;
+            text-align: center;
+            color: #7586a0;
+            padding: 20px;
+            font-size: .92rem;
+        }
 
-.invalid-feedback::before {
-    content: "⚠";
-    font-size: 0.85rem;
-}
+        .login-footer i {
+            margin-right: 8px;
+        }
 
-/* =====================================================
-   CHECKBOX "Recuérdame" — estilo switch suave
-====================================================== */
-.form-check {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    padding-left: 0;
-    margin-bottom: 1.3rem;
-}
+        .validation-error {
+            margin-top: 7px;
+            color: #dc3545;
+            font-size: .875rem;
+        }
 
-.form-check-input {
-    width: 1.1rem;
-    height: 1.1rem;
-    margin: 0;
-    border: 1.5px solid var(--gris-300);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: var(--transicion);
-    background-color: var(--blanco);
-}
+        .session-status {
+            margin-bottom: 20px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            background: #ecfdf5;
+            color: #047857;
+            font-size: .92rem;
+        }
 
-.form-check-input:hover {
-    border-color: var(--mint-500);
-    transform: scale(1.05);
-}
+        @media (max-width: 650px) {
+            .login-page {
+                padding: 20px 14px;
+            }
 
-.form-check-input:checked {
-    background-color: var(--mint-500);
-    border-color: var(--mint-500);
-    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
-}
+            .login-content {
+                padding: 38px 25px 25px;
+            }
 
-.form-check-input:focus {
-    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
-    border-color: var(--mint-500);
-}
+            .login-card {
+                border-radius: 17px;
+            }
 
-.form-check-label {
-    color: var(--gris-600);
-    font-size: 0.86rem;
-    font-weight: 500;
-    cursor: pointer;
-    user-select: none;
-    transition: color 0.2s ease;
-}
+            .brand h1 {
+                font-size: 1.7rem;
+            }
 
-.form-check-label:hover {
-    color: var(--gris-900);
-}
+            .brand-logo {
+                transform: scale(.85);
+                margin-bottom: 12px;
+            }
 
-/* =====================================================
-   BOTÓN LOGIN
-====================================================== */
-.btn-login {
-    position: relative;
-    background: linear-gradient(135deg, var(--mint-600) 0%, var(--azul-600) 100%);
-    color: var(--blanco);
-    border: none;
-    padding: 0.9rem 1rem;
-    border-radius: 12px;
-    font-weight: 700;
-    font-size: 0.92rem;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-    margin-top: 6px;
-    overflow: hidden;
-    transition: var(--transicion);
-    box-shadow:
-        0 6px 18px rgba(16, 185, 129, 0.35),
-        0 2px 4px rgba(15, 23, 42, 0.08);
-}
+            .remember-row {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 14px;
+            }
+        }
 
-/* Efecto de resplandor interior al hover */
-.btn-login::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, var(--mint-500) 0%, var(--azul-500) 100%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    z-index: -1;
-}
-
-/* Barrido de luz */
-.btn-login::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: -120%;
-    width: 60%;
-    height: 100%;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.35),
-        transparent
-    );
-    transform: skewX(-20deg);
-    transition: left 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.btn-login:hover {
-    color: var(--blanco);
-    transform: translateY(-2px);
-    box-shadow:
-        0 12px 28px rgba(16, 185, 129, 0.45),
-        0 4px 8px rgba(15, 23, 42, 0.1);
-}
-
-.btn-login:hover::before {
-    opacity: 1;
-}
-
-.btn-login:hover::after {
-    left: 120%;
-}
-
-.btn-login:active {
-    transform: translateY(0);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
-}
-
-.btn-login:focus-visible {
-    outline: none;
-    box-shadow:
-        0 0 0 4px rgba(16, 185, 129, 0.3),
-        0 6px 18px rgba(16, 185, 129, 0.35);
-}
-
-/* =====================================================
-   FOOTER DEL LOGIN
-====================================================== */
-.login-footer {
-    text-align: center;
-    margin-top: 26px;
-    padding-top: 22px;
-    font-size: 13.5px;
-    border-top: 1px solid var(--gris-100);
-    position: relative;
-}
-
-/* Pequeño punto mint sobre la línea divisoria */
-.login-footer::before {
-    content: "";
-    position: absolute;
-    top: -4px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--mint-500);
-    box-shadow: 0 0 0 4px var(--blanco);
-}
-
-.login-footer p {
-    margin-bottom: 8px;
-    color: var(--gris-500);
-    font-weight: 500;
-}
-
-.login-footer p:last-child {
-    margin-bottom: 0;
-}
-
-.login-footer a {
-    color: var(--mint-700);
-    text-decoration: none;
-    font-weight: 700;
-    transition: var(--transicion);
-    position: relative;
-    padding-bottom: 1px;
-}
-
-.login-footer a::after {
-    content: "";
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, var(--mint-500), var(--azul-500));
-    border-radius: 2px;
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.login-footer a:hover {
-    color: var(--azul-700);
-}
-
-.login-footer a:hover::after {
-    transform: scaleX(1);
-}
-
-/* =====================================================
-   RESPONSIVE
-====================================================== */
-@media (max-width: 480px) {
-    .login-container {
-        padding: 44px 26px 32px;
-        border-radius: 20px;
-    }
-
-    .login-container::before {
-        width: 58px;
-        height: 58px;
-        font-size: 26px;
-        top: -28px;
-    }
-
-    .login-header h1 {
-        font-size: 22px;
-    }
-
-    .login-header p {
-        font-size: 12px;
-    }
-}
-        
+        @media (prefers-color-scheme: dark) {
+            body:not([data-theme="light"]) .login-page {
+                background:
+                    radial-gradient(circle at 15% 15%, rgba(30, 64, 175, .22), transparent 32%),
+                    radial-gradient(circle at 82% 75%, rgba(14, 116, 144, .14), transparent 35%),
+                    #0f172a;
+            }
+        }
     </style>
 </head>
+
 <body>
+<div class="login-page">
 
-<div class="login-container">
-    
-    {{-- Header del login --}}
-    <div class="login-header">
-        <h1>💊 Farmacia</h1>
-        <p>Sistema de Gestión</p>
-    </div>
+    <div class="login-card">
 
-    {{-- Mostrar errores si los hay --}}
-    @if ($errors->any())
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <strong>Errores:</strong>
-        <ul class="mb-0 mt-2">
-            @foreach ($errors->all() as $error)
-            <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    @endif
+        <div class="login-content">
 
-    {{-- Formulario de login --}}
-    <form method="POST" action="{{ route('login') }}" novalidate>
-        @csrf
+            <div class="brand">
 
-        {{-- Email --}}
-        <div class="mb-3">
-            <label for="email" class="form-label">Email</label>
-            <input 
-                type="email" 
-                class="form-control @error('email') is-invalid @enderror" 
-                id="email" 
-                name="email" 
-                value="{{ old('email') }}"
-                placeholder="tu@email.com" 
-                required
-                autofocus
-            >
-            @error('email')
-            <div class="invalid-feedback d-block">
-                {{ $message }}
+                <div class="brand-logo" aria-hidden="true">
+                    <div class="cross"></div>
+                    <div class="leaf"></div>
+                </div>
+
+                <h1>
+                    Sistema de <span>Farmacia</span>
+                </h1>
+
+                <p>Inicia sesión para continuar</p>
             </div>
-            @enderror
+
+            <div class="divider"></div>
+
+            @if (session('status'))
+                <div class="session-status">
+                    {{ session('status') }}
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('login') }}">
+                @csrf
+
+                {{-- Correo --}}
+                <div class="mb-4">
+                    <label for="email" class="form-label">
+                        Correo electrónico
+                    </label>
+
+                    <div class="input-wrap">
+                        <i class="bi bi-envelope input-icon"></i>
+
+                        <input
+                            id="email"
+                            type="email"
+                            name="email"
+                            value="{{ old('email') }}"
+                            class="form-control @error('email') is-invalid @enderror"
+                            placeholder="tu@correo.com"
+                            autocomplete="username"
+                            required
+                            autofocus
+                        >
+                    </div>
+
+                    @error('email')
+                        <div class="validation-error">
+                            {{ $message }}
+                        </div>
+                    @enderror
+                </div>
+
+                {{-- Contraseña --}}
+                <div>
+                    <label for="password" class="form-label">
+                        Contraseña
+                    </label>
+
+                    <div class="input-wrap">
+                        <i class="bi bi-lock input-icon"></i>
+
+                        <input
+                            id="password"
+                            type="password"
+                            name="password"
+                            class="form-control @error('password') is-invalid @enderror"
+                            placeholder="••••••••"
+                            autocomplete="current-password"
+                            required
+                        >
+
+                        <button
+                            type="button"
+                            class="password-toggle"
+                            id="togglePassword"
+                            aria-label="Mostrar u ocultar contraseña"
+                        >
+                            <i class="bi bi-eye-slash" id="passwordIcon"></i>
+                        </button>
+                    </div>
+
+                    @error('password')
+                        <div class="validation-error">
+                            {{ $message }}
+                        </div>
+                    @enderror
+                </div>
+
+                {{-- Recordarme / contraseña --}}
+                <div class="remember-row">
+
+                    <div class="form-check">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            name="remember"
+                            id="remember"
+                        >
+
+                        <label class="form-check-label" for="remember">
+                            Recordarme
+                        </label>
+                    </div>
+                </div>
+
+                {{-- Login --}}
+                <button type="submit" class="btn-login">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>
+                    Iniciar sesión
+                </button>
+            </form>
         </div>
 
-        {{-- Password --}}
-        <div class="mb-3">
-            <label for="password" class="form-label">Contraseña</label>
-            <input 
-                type="password" 
-                class="form-control @error('password') is-invalid @enderror" 
-                id="password" 
-                name="password" 
-                placeholder="Tu contraseña" 
-                required
-            >
-            @error('password')
-            <div class="invalid-feedback d-block">
-                {{ $message }}
-            </div>
-            @enderror
-        </div>
-
-        {{-- Remember me --}}
-        <div class="mb-3 form-check">
-            <input 
-                type="checkbox" 
-                class="form-check-input" 
-                id="remember" 
-                name="remember"
-            >
-            <label class="form-check-label" for="remember">
-                Recuérdame
-            </label>
-        </div>
-
-        {{-- Botón login --}}
-        <button type="submit" class="btn btn-login btn-primary w-100">
-            Iniciar Sesión
-        </button>
-
-        {{-- Enlaces footer --}}
         <div class="login-footer">
-            <p>¿No tienes cuenta? <a href="{{ route('register') }}">Registrate aquí</a></p>
-            <p><a href="{{ route('password.request') }}">¿Olvidaste tu contraseña?</a></p>
+            <i class="bi bi-shield-check"></i>
+            Acceso para personal autorizado
         </div>
-    </form>
+
+    </div>
 
 </div>
 
-{{-- Bootstrap JS --}}
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const password = document.getElementById('password');
+    const toggle = document.getElementById('togglePassword');
+    const icon = document.getElementById('passwordIcon');
 
+    toggle.addEventListener('click', () => {
+        const mostrando = password.type === 'text';
+
+        password.type = mostrando ? 'password' : 'text';
+
+        icon.classList.toggle('bi-eye', mostrando);
+        icon.classList.toggle('bi-eye-slash', !mostrando);
+    });
+</script>
 </body>
 </html>

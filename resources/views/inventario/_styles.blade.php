@@ -11,15 +11,15 @@
     }
 
     .inventario-modulo .card-footer {
-        border-top: 1px solid #eef0f2;
+        border-top: 1px solid var(--border);
     }
 
     .inventario-modulo table thead th {
         text-transform: uppercase;
         font-size: 0.72rem;
         letter-spacing: 0.04em;
-        color: #6c757d;
-        border-bottom: 2px solid #e9ecef;
+        color: var(--text-muted);
+        border-bottom: 2px solid var(--border);
         white-space: nowrap;
     }
 
@@ -28,7 +28,7 @@
     }
 
     .inventario-modulo table tbody tr:hover {
-        background-color: #f8f9fc;
+        background-color: var(--surface-2);
     }
 
     .inventario-modulo table td,
@@ -40,7 +40,7 @@
     /* Fila separadora de producto */
 
     .inventario-modulo tr.table-light td {
-        background-color: #f4f6f9 !important;
+        background-color: var(--surface-3) !important;
         font-size: 0.92rem;
     }
 
@@ -80,7 +80,7 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.03em;
-        color: #495057;
+        color: var(--text-2);
         margin-bottom: 0.3rem;
     }
 
@@ -133,10 +133,10 @@
 
         margin: 0 auto;
 
-        background: #ffffff;
+        background: var(--surface);
         border-radius: 1rem;
 
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.20);
+        box-shadow: var(--shadow-lg);
 
         display: flex;
         flex-direction: column;
@@ -163,7 +163,7 @@
 
         padding: 1rem 1.25rem;
 
-        border-bottom: 1px solid #eef0f2;
+        border-bottom: 1px solid var(--border);
     }
 
     .modal-dialog-custom .modal-body {
@@ -180,7 +180,7 @@
 
         padding: 1rem 1.25rem;
 
-        border-top: 1px solid #eef0f2;
+        border-top: 1px solid var(--border);
     }
 
 
@@ -203,7 +203,7 @@
 
         background: transparent;
 
-        color: #6c757d;
+        color: var(--text-muted);
 
         font-size: 1.4rem;
         line-height: 1;
@@ -216,8 +216,8 @@
     }
 
     .modal-cerrar:hover {
-        background-color: #f1f3f5;
-        color: #212529;
+        background-color: var(--surface-3);
+        color: var(--text);
     }
 
 
@@ -305,7 +305,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    color: #6c757d;
+    color: var(--text-muted);
     margin-bottom: 0.15rem;
 }
 
@@ -321,7 +321,7 @@
 
 .inventario-modulo .tarjeta-clickable:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08) !important;
+    box-shadow: var(--shadow-md);
 }
 
 
@@ -341,15 +341,15 @@
 
 /* Ajustar: tono ámbar suave para no competir con el azul principal */
 .inventario-modulo .btn-operacion-ajuste {
-    background-color: #fef3c7;
-    border: 1px solid #fcd34d;
-    color: #92400e;
+    background-color: var(--warning-soft);
+    border: 1px solid var(--warning);
+    color: var(--bs-warning-text-emphasis);
 }
 
 .inventario-modulo .btn-operacion-ajuste:hover {
-    background-color: #fde68a;
-    border-color: #f59e0b;
-    color: #78350f;
+    background-color: var(--warning-soft);
+    border-color: var(--warning);
+    color: var(--bs-warning-text-emphasis);
 }
 
 
@@ -358,7 +358,7 @@
    ========================================================= */
 
 .inventario-modulo .tabla-stock thead th {
-    background-color: #f8fafc;
+    background-color: var(--surface-2);
 }
 
 .inventario-modulo .tabla-stock tbody td {
@@ -375,12 +375,12 @@
 
 .inventario-modulo .producto-nombre {
     font-weight: 600;
-    color: #212529;
+    color: var(--text);
 }
 
 .inventario-modulo .producto-codigo {
     font-size: 0.78rem;
-    color: #94a3b8;
+    color: var(--text-muted);
     margin-top: 0.15rem;
 }
 
@@ -388,8 +388,8 @@
 .inventario-modulo .lote-chip {
     display: inline-flex;
     align-items: center;
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--surface-3);
+    color: var(--text-2);
     padding: 0.25rem 0.6rem;
     border-radius: 0.4rem;
     font-size: 0.78rem;
@@ -402,11 +402,11 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    color: #495057;
+    color: var(--text-2);
 }
 
 .inventario-modulo .ubicacion-cell i {
-    color: #94a3b8;
+    color: var(--text-muted);
     font-size: 0.85rem;
 }
 
@@ -414,12 +414,12 @@
 .inventario-modulo .cantidad-valor {
     font-weight: 700;
     font-size: 1rem;
-    color: #212529;
+    color: var(--text);
 }
 
 .inventario-modulo .cantidad-unidad {
     font-size: 0.72rem;
-    color: #94a3b8;
+    color: var(--text-muted);
     margin-left: 0.2rem;
 }
 

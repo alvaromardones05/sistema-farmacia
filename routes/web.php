@@ -301,15 +301,17 @@ Route::middleware('permission:cerrar_caja')->group(function () {
     // Técnico + Químico + Bodeguero
     // =================================================
 
-    Route::middleware('role:Químico Farmacéutico|Técnico Farmacéutico|Bodeguero')->group(function () {
+    Route::middleware(['auth', 'verified', 'role:Químico Farmacéutico|Técnico Farmacéutico|Bodeguero'])->group(function () {
 
         Route::get('/compras', [OrdenCompraController::class, 'index'])
             ->name('compras.index');
 
         Route::get('/compras/crear', [OrdenCompraController::class, 'create'])
+            ->middleware('role:Químico Farmacéutico')
             ->name('compras.create');
 
         Route::post('/compras', [OrdenCompraController::class, 'store'])
+            ->middleware('role:Químico Farmacéutico')
             ->name('compras.store');
         
         Route::post('/compras/recepciones/{recepcion}/aprobar', [RecepcionMercaderiaController::class, 'aprobar'])
@@ -326,27 +328,30 @@ Route::middleware('permission:cerrar_caja')->group(function () {
 
         // PROVEEDORES
 
-        Route::get('/compras/proveedores', [ProveedorController::class, 'index'])
-            ->name('compras.proveedores.index');
+        Route::middleware('role:Químico Farmacéutico')->group(function () {
+            Route::get('/compras/proveedores', [ProveedorController::class, 'index'])
+                ->name('compras.proveedores.index');
 
-        Route::get('/compras/proveedores/crear', [ProveedorController::class, 'create'])
-            ->name('compras.proveedores.create');
+            Route::get('/compras/proveedores/crear', [ProveedorController::class, 'create'])
+                ->name('compras.proveedores.create');
 
-        Route::post('/compras/proveedores', [ProveedorController::class, 'store'])
-            ->name('compras.proveedores.store');
+            Route::post('/compras/proveedores', [ProveedorController::class, 'store'])
+                ->name('compras.proveedores.store');
 
-        Route::get('/compras/proveedores/{proveedor}/editar', [ProveedorController::class, 'edit'])
-            ->name('compras.proveedores.edit');
+            Route::get('/compras/proveedores/{proveedor}/editar', [ProveedorController::class, 'edit'])
+                ->name('compras.proveedores.edit');
 
-        Route::put('/compras/proveedores/{proveedor}', [ProveedorController::class, 'update'])
-            ->name('compras.proveedores.update');
+            Route::put('/compras/proveedores/{proveedor}', [ProveedorController::class, 'update'])
+                ->name('compras.proveedores.update');
 
-        Route::patch('/compras/proveedores/{proveedor}/estado', [ProveedorController::class, 'cambiarEstado'])
-            ->name('compras.proveedores.estado');
+            Route::patch('/compras/proveedores/{proveedor}/estado', [ProveedorController::class, 'cambiarEstado'])
+                ->name('compras.proveedores.estado');
+        });
     });
 
     // RECEPCIONES
 
+    Route::middleware(['auth', 'verified', 'role:Químico Farmacéutico|Técnico Farmacéutico|Bodeguero'])->group(function () {
         Route::get('/compras/recepciones', [RecepcionMercaderiaController::class, 'index'])
             ->name('compras.recepciones.index');
 
@@ -355,12 +360,15 @@ Route::middleware('permission:cerrar_caja')->group(function () {
             ->name('compras.recepciones.show');
 
         Route::get('/compras/{orden}/recibir', [RecepcionMercaderiaController::class, 'create'])
+            ->middleware('role:Bodeguero')
             ->whereNumber('orden')
             ->name('compras.recepciones.create');
 
         Route::post('/compras/{orden}/recibir', [RecepcionMercaderiaController::class, 'store'])
+            ->middleware('role:Bodeguero')
             ->whereNumber('orden')
             ->name('compras.recepciones.store');
+    });
 
 
 // Autenticación de Breeze

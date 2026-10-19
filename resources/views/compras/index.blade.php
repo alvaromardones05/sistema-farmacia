@@ -12,10 +12,12 @@
             <p class="text-muted mb-0">Gestiona órdenes de compra, recepción de mercadería y proveedores.</p>
         </div>
 
+        @role('Químico Farmacéutico')
         <a href="{{ route('compras.create') }}" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i>
             Nueva compra
         </a>
+        @endrole
     </div>
 
     <div class="row g-3 mb-4">
@@ -50,6 +52,7 @@
             </div>
         </div>
 
+        @role('Químico Farmacéutico')
         <div class="col-md-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
@@ -59,6 +62,7 @@
                 </div>
             </div>
         </div>
+        @endrole
 
     </div>
 
@@ -76,6 +80,7 @@
             Recepciones
         </a>
 
+        @role('Químico Farmacéutico')
         <a
             href="{{ route('compras.proveedores.index') }}"
             class="btn btn-outline-secondary"
@@ -83,6 +88,7 @@
             <i class="bi bi-building me-1"></i>
             Proveedores
         </a>
+        @endrole
     </div>
 
     <div class="card border-0 shadow-sm">

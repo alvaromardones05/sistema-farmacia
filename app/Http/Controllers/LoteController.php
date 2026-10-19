@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use App\Models\Stock;
 use App\Models\UbicacionAlmacen;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class LoteController extends Controller
 {
@@ -28,11 +29,14 @@ class LoteController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        $ubicaciones = UbicacionAlmacen::where('activo', true)
-            ->orderBy('nombre')
-            ->get();
+        $ubicacionesIniciales = UbicacionAlmacen::where('activo', true)
+            ->whereIn('tipo', ['bodega', 'frigorifica'])
+            ->orderBy('id')
+            ->get(['tipo', 'nombre'])
+            ->unique('tipo')
+            ->pluck('nombre', 'tipo');
 
-        return view('lotes.create', compact('productos', 'ubicaciones'));
+        return view('lotes.create', compact('productos', 'ubicacionesIniciales'));
     }
 
     public function store(Request $request)
@@ -43,12 +47,32 @@ class LoteController extends Controller
             'fecha_fabricacion' => 'nullable|date',
             'fecha_vencimiento' => 'required|date|after:today',
             'cantidad_inicial'  => 'required|integer|min:0',
-            'ubicacion_id'      => 'required|exists:ubicaciones_almacen,id',
             'estado'            => 'required|in:activo,agotado,vencido',
             'observaciones'     => 'nullable|string',
         ]);
 
         DB::transaction(function () use ($validated) {
+            $producto = Producto::findOrFail($validated['producto_id']);
+            $ubicacion = null;
+
+            if ($validated['cantidad_inicial'] > 0) {
+                $tipoUbicacion = $producto->condicion_almacenamiento === 'refrigerado'
+                    ? 'frigorifica'
+                    : 'bodega';
+
+                $ubicacion = UbicacionAlmacen::where('tipo', $tipoUbicacion)
+                    ->where('activo', true)
+                    ->orderBy('id')
+                    ->first();
+
+                if (!$ubicacion) {
+                    throw ValidationException::withMessages([
+                        'producto_id' => $tipoUbicacion === 'frigorifica'
+                            ? 'No existe una ubicación frigorífica activa configurada para almacenar este producto.'
+                            : 'No existe una bodega activa configurada para almacenar este producto.',
+                    ]);
+                }
+            }
 
             $lote = Lote::create([
                 'producto_id'       => $validated['producto_id'],
@@ -61,12 +85,6 @@ class LoteController extends Controller
             ]);
 
             if ($validated['cantidad_inicial'] > 0) {
-
-                $producto = Producto::findOrFail($validated['producto_id']);
-
-                $ubicacion = UbicacionAlmacen::findOrFail(
-                    $validated['ubicacion_id']
-                );
 
                 Stock::registrarEntrada(
                     producto: $producto,

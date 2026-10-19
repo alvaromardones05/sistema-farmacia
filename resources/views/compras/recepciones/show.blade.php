@@ -203,7 +203,7 @@
 
                     <p class="text-muted">
                         Verifica físicamente cantidades, lotes, vencimientos y comprobante antes de aprobar.
-                        Al aprobar, los productos ingresarán al inventario de Bodega.
+                        Al aprobar, cada producto ingresará a bodega o a una ubicación frigorífica según su condición de almacenamiento.
                     </p>
 
                     <div class="d-flex gap-2 mb-4">

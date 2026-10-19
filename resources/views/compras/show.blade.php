@@ -39,7 +39,8 @@
                     Volver a Compras
                 </a>
 
-                @if(in_array($orden->estado, ['pendiente', 'confirmada', 'parcial']))
+                @role('Bodeguero')
+                @if($puedeRecibir)
                     <a
                         href="{{ route('compras.recepciones.create', $orden) }}"
                         class="btn btn-primary"
@@ -48,6 +49,7 @@
                         Recibir mercadería
                     </a>
                 @endif
+                @endrole
             </div>
         </div>
     </div>
@@ -214,5 +216,18 @@
         </div>
     </div>
 
+    @if($orden->recepciones->isNotEmpty())
+        <section class="card border-0 shadow-sm mt-4">
+            <div class="card-header"><h2 class="h5 mb-0">Recepciones registradas</h2></div>
+            <ul class="list-group list-group-flush">
+                @foreach($orden->recepciones as $recepcion)
+                    <li class="list-group-item d-flex flex-wrap justify-content-between gap-2">
+                        <span>Recepción #{{ $recepcion->id }} · {{ $recepcion->fecha_recepcion->format('d/m/Y H:i') }} · {{ ucfirst($recepcion->estado) }}</span>
+                        <a href="{{ route('compras.recepciones.show', $recepcion) }}">Consultar recepción</a>
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
 </div>
 @endsection

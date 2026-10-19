@@ -130,18 +130,19 @@
 
 
                 <!-- DASHBOARD -->
+                    <a
+                        href="{{ route('dashboard') }}"
+                        class="nav-link
+                        {{ request()->routeIs('dashboard') ? 'active' : '' }}"
+                    >
 
-                <a
-                    href="{{ route('dashboard') }}"
-                    class="nav-link
-                    {{ request()->routeIs('dashboard') ? 'active' : '' }}"
-                >
+                        <i class="bi bi-speedometer2 me-2"></i>
 
-                    <i class="bi bi-speedometer2 me-2"></i>
+                        Dashboard
 
-                    Dashboard
+                    </a>
 
-                </a>
+
 
                 @hasanyrole('Administrador|Químico Farmacéutico')
                     <a href="{{ route('convenios.index') }}"
@@ -213,7 +214,6 @@
                     </a>
                 @endhasanyrole
 
-
                 <!-- LOTES -->
 
                 @hasanyrole('Técnico Farmacéutico|Químico Farmacéutico|Bodeguero')
@@ -232,8 +232,7 @@
                 @endhasanyrole
 
                 <!-- COMPRAS / RECEPCIONES -->
-
-                @hasanyrole('Técnico Farmacéutico|Químico Farmacéutico|Bodeguero')
+                @hasanyrole('Químico Farmacéutico|Bodeguero')
                     <a
                         href="{{ route('compras.index') }}"
                         class="nav-link {{ request()->routeIs('compras.*') ? 'active' : '' }}"
@@ -243,10 +242,9 @@
                     </a>
                 @endhasanyrole
 
-
                 <!-- VENTAS -->
 
-                @hasanyrole('Técnico Farmacéutico|Químico Farmacéutico')
+                @hasanyrole('Técnico Farmacéutico')
                     <a href="{{ route('ventas.index') }}" class="nav-link {{ request()->routeIs('ventas.*') ? 'active' : '' }}">
                         <i class="bi bi-cart-check me-2"></i>Ventas
                     </a>
@@ -435,6 +433,54 @@
         --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
         --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
         --shadow-focus: 0 0 0 3px rgba(47, 129, 247, 0.35);
+
+        /* Alinear los componentes nativos de Bootstrap con el tema existente. */
+        --bs-body-bg: var(--surface);
+        --bs-body-color: var(--text);
+        --bs-secondary-bg: var(--surface-2);
+        --bs-tertiary-bg: var(--surface-3);
+        --bs-secondary-color: var(--text-muted);
+        --bs-border-color: var(--border);
+    }
+
+    /* Bootstrap declara estas utilidades con !important: es necesario igualarlo. */
+    [data-bs-theme="dark"] .bg-white {
+        background-color: var(--surface) !important;
+    }
+    [data-bs-theme="dark"] .bg-light,
+    [data-bs-theme="dark"] .text-bg-light {
+        background-color: var(--surface-2) !important;
+    }
+    [data-bs-theme="dark"] .text-dark,
+    [data-bs-theme="dark"] .text-bg-light {
+        color: var(--text) !important;
+    }
+    [data-bs-theme="dark"] .border-light {
+        border-color: var(--border) !important;
+    }
+    [data-bs-theme="dark"] .text-secondary {
+        color: var(--text-muted) !important;
+    }
+    [data-bs-theme="dark"] .badge.bg-dark {
+        background: var(--surface-3) !important;
+        color: var(--text);
+    }
+    [data-bs-theme="dark"] .badge.bg-warning.text-dark {
+        color: var(--bs-warning-text-emphasis) !important;
+    }
+    [data-bs-theme="dark"] .badge.bg-info.text-dark {
+        color: var(--bs-info-text-emphasis) !important;
+    }
+    [data-bs-theme="dark"] .table-light {
+        --bs-table-bg: var(--surface-2);
+        --bs-table-color: var(--text-2);
+        --bs-table-border-color: var(--border);
+        --bs-table-striped-bg: var(--surface-3);
+        --bs-table-striped-color: var(--text-2);
+        --bs-table-hover-bg: var(--primary-soft);
+        --bs-table-hover-color: var(--text);
+        --bs-table-active-bg: var(--surface-3);
+        --bs-table-active-color: var(--text);
     }
 
     [data-bs-theme="dark"] body { background: var(--page-bg); }
@@ -1061,6 +1107,7 @@
     .alert-danger  { border-left-color: var(--danger);  background: var(--danger-soft);  color: var(--text); }
     .alert-warning { border-left-color: var(--warning); background: var(--warning-soft); color: var(--text); }
     .alert-info    { border-left-color: var(--info);    background: var(--info-soft);    color: var(--text); }
+    .alert .alert-link { color: inherit; }
 
     /* =====================================================
     MODALES

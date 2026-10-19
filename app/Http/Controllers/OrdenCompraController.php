@@ -112,7 +112,9 @@ class OrdenCompraController extends Controller
             'recepciones.usuario',
         ]);
 
-        return view('compras.show', compact('orden'));
+        $puedeRecibir = $orden->puedeRecibirMercaderia();
+
+        return view('compras.show', compact('orden', 'puedeRecibir'));
     }
 
     private function generarNumeroOrden(): string

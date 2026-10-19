@@ -223,6 +223,13 @@ class InventarioController extends Controller
                 ->with('error', 'La ubicación de destino está inactiva.');
         }
 
+        if ($producto->condicion_almacenamiento === 'refrigerado'
+            && $destinoUbicacion->tipo !== 'frigorifica') {
+            return back()
+                ->withInput()
+                ->with('error', 'Este producto requiere almacenamiento refrigerado y no puede trasladarse a esta ubicación.');
+        }
+
         $stockOrigen = Stock::where('producto_id', $producto->id)
             ->where('lote_id', $lote->id)
             ->where('ubicacion_id', $origenUbicacion->id)

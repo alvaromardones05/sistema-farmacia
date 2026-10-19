@@ -26,6 +26,7 @@ class Producto extends Model
         'categoria_id',
         'laboratorio_id',
         'unidad_medida',
+        'condicion_almacenamiento',
         'requiere_receta',
         'tipo_receta',
         'es_controlado',

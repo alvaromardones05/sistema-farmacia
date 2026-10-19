@@ -85,6 +85,15 @@
                 <input id="unidad_medida" name="unidad_medida" value="{{ old('unidad_medida', $producto?->unidad_medida) }}" class="form-control" required>
             </div>
             <div class="col-md-4">
+                <label for="condicion_almacenamiento" class="form-label">Condición de almacenamiento *</label>
+                <select id="condicion_almacenamiento" name="condicion_almacenamiento" class="form-select @error('condicion_almacenamiento') is-invalid @enderror" required>
+                    @foreach (['ambiente' => 'Ambiente', 'refrigerado' => 'Refrigerado'] as $valor => $etiqueta)
+                        <option value="{{ $valor }}" @selected(old('condicion_almacenamiento', $producto?->condicion_almacenamiento ?? 'ambiente') === $valor)>{{ $etiqueta }}</option>
+                    @endforeach
+                </select>
+                @error('condicion_almacenamiento')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            </div>
+            <div class="col-md-4">
                 <label for="tipo_receta" class="form-label">Tipo de receta *</label>
                 <select id="tipo_receta" name="tipo_receta" class="form-select" required>
                     @foreach (['ninguna', 'simple', 'retenida', 'cheque'] as $tipo)

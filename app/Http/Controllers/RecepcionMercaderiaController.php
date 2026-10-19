@@ -29,43 +29,31 @@ class RecepcionMercaderiaController extends Controller
 
     public function create(OrdenCompra $orden)
     {
-        if (in_array($orden->estado, ['recibida', 'anulada'])) {
+        if (!$orden->puedeRecibirMercaderia()) {
             return redirect()
                 ->route('compras.show', $orden)
-                ->withErrors(['recepcion' => 'Esta orden ya no puede recibir mercadería.']);
+                ->withErrors(['recepcion' => 'Esta orden ya fue recibida, no tiene cantidades pendientes o tiene una recepción pendiente de revisión.']);
         }
 
         $orden->load(['proveedor', 'detalles.producto']);
 
-        $bodega = UbicacionAlmacen::where('tipo', 'bodega')
-            ->where('activo', true)
-            ->first();
+        $ubicacionesAlmacenamiento = UbicacionAlmacen::where('activo', true)
+            ->whereIn('tipo', ['bodega', 'frigorifica'])
+            ->orderBy('id')
+            ->get(['tipo', 'nombre'])
+            ->unique('tipo')
+            ->pluck('nombre', 'tipo');
 
-        if (!$bodega) {
-            return redirect()
-                ->route('compras.show', $orden)
-                ->withErrors(['recepcion' => 'No existe una ubicación activa de tipo Bodega.']);
-        }
-
-        return view('compras.recepciones.create', compact('orden'));
+        return view('compras.recepciones.create', compact('orden', 'ubicacionesAlmacenamiento'));
     }
 
     public function store(Request $request, OrdenCompra $orden)
 {
-    if (in_array($orden->estado, ['recibida', 'anulada'])) {
+    if (!$orden->puedeRecibirMercaderia()) {
         return redirect()
             ->route('compras.show', $orden)
             ->withErrors([
-                'recepcion' => 'Esta orden ya no puede recibir mercadería.'
-            ]);
-    }
-
-    // No permitimos dos recepciones pendientes de revisión para la misma orden.
-    if ($orden->recepciones()->where('estado', 'pendiente')->exists()) {
-        return redirect()
-            ->route('compras.show', $orden)
-            ->withErrors([
-                'recepcion' => 'Esta orden ya posee una recepción pendiente de revisión.'
+                'recepcion' => 'Esta orden ya fue recibida, no tiene cantidades pendientes o tiene una recepción pendiente de revisión.'
             ]);
     }
 
@@ -80,10 +68,15 @@ class RecepcionMercaderiaController extends Controller
         'detalles.*.fecha_vencimiento' => 'nullable|date|after_or_equal:today',
     ]);
 
-    $orden->load('detalles.producto');
-
     try {
         $recepcion = DB::transaction(function () use ($validated, $orden) {
+            $orden = OrdenCompra::whereKey($orden->id)->lockForUpdate()->firstOrFail();
+
+            if (!$orden->puedeRecibirMercaderia()) {
+                throw new \Exception('Esta orden ya fue recibida o tiene una recepción pendiente de revisión.');
+            }
+
+            $orden->load('detalles.producto');
 
             $recepcion = RecepcionMercaderia::create([
                 'orden_compra_id' => $orden->id,
@@ -253,18 +246,8 @@ class RecepcionMercaderiaController extends Controller
             abort(403);
         }
 
-        $bodega = UbicacionAlmacen::where('tipo', 'bodega')
-            ->where('activo', true)
-            ->first();
-
-        if (!$bodega) {
-            return back()->withErrors([
-                'recepcion' => 'No existe una ubicación activa de tipo Bodega.'
-            ]);
-        }
-
         try {
-            DB::transaction(function () use ($recepcion, $usuario, $bodega) {
+            DB::transaction(function () use ($recepcion, $usuario) {
 
                 $recepcionActual = RecepcionMercaderia::whereKey($recepcion->id)
                     ->lockForUpdate()
@@ -282,7 +265,27 @@ class RecepcionMercaderiaController extends Controller
 
                 $orden = $recepcionActual->ordenCompra;
 
+                $ubicaciones = UbicacionAlmacen::where('activo', true)
+                    ->whereIn('tipo', ['bodega', 'frigorifica'])
+                    ->orderBy('id')
+                    ->get()
+                    ->unique('tipo')
+                    ->keyBy('tipo');
+
                 foreach ($recepcionActual->detalles as $detalle) {
+
+                    $tipoUbicacion = $detalle->producto->condicion_almacenamiento === 'refrigerado'
+                        ? 'frigorifica'
+                        : 'bodega';
+                    $ubicacion = $ubicaciones->get($tipoUbicacion);
+
+                    if (!$ubicacion) {
+                        throw new \Exception(
+                            $tipoUbicacion === 'frigorifica'
+                                ? 'No existe una ubicación frigorífica activa configurada para almacenar este producto.'
+                                : 'No existe una bodega activa configurada para almacenar este producto.'
+                        );
+                    }
 
                     $detalleOrden = $detalle->ordenCompraDetalle;
 
@@ -348,7 +351,7 @@ class RecepcionMercaderiaController extends Controller
                     Stock::registrarEntrada(
                         $detalle->producto,
                         $lote,
-                        $bodega,
+                        $ubicacion,
                         $detalle->cantidad_recibida,
                         $usuario->id,
                         "Recepción #{$recepcionActual->id} - {$orden->numero_orden}",
@@ -410,7 +413,7 @@ class RecepcionMercaderiaController extends Controller
             ->route('compras.recepciones.show', $recepcion)
             ->with(
                 'success',
-                'Recepción aprobada. El stock fue ingresado correctamente a Bodega.'
+                'Recepción aprobada. El stock fue ingresado en las ubicaciones correspondientes a cada producto.'
             );
     }
 

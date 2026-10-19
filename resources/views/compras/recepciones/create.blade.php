@@ -80,6 +80,7 @@
                     <thead class="table-light">
                         <tr>
                             <th>Producto</th>
+                            <th>Ubicación de almacenamiento</th>
                             <th>Solicitado</th>
                             <th>Recibido</th>
                             <th>Pendiente</th>
@@ -96,6 +97,8 @@
 
                             @php
                                 $pendiente = $detalle->cantidad_solicitada - $detalle->cantidad_recibida;
+                                $refrigerado = $detalle->producto->condicion_almacenamiento === 'refrigerado';
+                                $tipoUbicacion = $refrigerado ? 'frigorifica' : 'bodega';
                             @endphp
 
                             @if($pendiente > 0)
@@ -110,6 +113,14 @@
                                         <div class="small text-muted">
                                             {{ $detalle->producto->codigo_interno }}
                                         </div>
+                                    </td>
+
+                                    <td>
+                                        <div class="fw-semibold">
+                                            <i class="bi {{ $refrigerado ? 'bi-snow' : 'bi-box-seam' }} me-1" aria-hidden="true"></i>
+                                            {{ $ubicacionesAlmacenamiento->get($tipoUbicacion) ?? 'Sin ubicación activa configurada' }}
+                                        </div>
+                                        <div class="small text-muted">{{ $refrigerado ? 'Refrigerado' : 'Ambiente' }}</div>
                                     </td>
 
                                     <td>

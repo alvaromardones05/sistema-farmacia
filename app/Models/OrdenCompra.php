@@ -46,4 +46,14 @@ class OrdenCompra extends Model
     {
         return $this->hasMany(RecepcionMercaderia::class, 'orden_compra_id');
     }
+
+    public function puedeRecibirMercaderia(): bool
+    {
+        return in_array($this->estado, ['pendiente', 'confirmada', 'parcial'])
+            && !$this->recepciones()->where('estado', 'pendiente')->exists()
+            && $this->detalles()
+                ->where('estado_linea', '!=', 'cancelada')
+                ->whereColumn('cantidad_recibida', '<', 'cantidad_solicitada')
+                ->exists();
+    }
 }
