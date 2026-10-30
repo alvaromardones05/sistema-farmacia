@@ -16,11 +16,18 @@ class RecepcionMercaderiaDetalle extends Model
         'orden_compra_detalle_id',
         'producto_id',
         'lote_id',
+
         'cantidad_recibida',
+        'cantidad_aceptada',
+        'cantidad_rechazada',
+
         'precio_unitario',
+
         'numero_lote',
         'fecha_fabricacion',
         'fecha_vencimiento',
+
+        'observacion',
     ];
 
     protected $casts = [

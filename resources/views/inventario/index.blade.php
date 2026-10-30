@@ -30,6 +30,15 @@
     </div>
 
     {{-- ================= MENSAJES ================= --}}
+    @if ($errors->any())
+        <div class="alert alert-danger" role="alert">
+            <ul class="mb-0">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
     @if (session('success'))
         <div class="alert alert-success">
             {{ session('success') }}
@@ -48,44 +57,28 @@
 
             <div class="nav nav-tabs border-0 gap-2">
 
-                @if($ubicacionesTabs->has('vitrina'))
+                @foreach ([
+                    'vitrina' => ['Vitrina', 'shop'],
+                    'vitrina_refrigerada' => ['Vitrina Refrigerada', 'snow'],
+                    'bodega' => ['Bodega', 'box-seam'],
+                    'frigorifica' => ['Frigorífica', 'snow'],
+                    'cuarentena' => ['No aptos', 'exclamation-triangle'],
+                    'canje' => ['Canje', 'arrow-repeat'],
+                ] as $tipo => [$etiqueta, $icono])
+                @if($ubicacionesTabs->has($tipo))
                     <a href="{{ route('inventario.index', [
-                        'tipo' => 'vitrina',
+                        'tipo' => $tipo,
                         'producto_id' => request('producto_id'),
                         'buscar' => request('buscar')
                     ]) }}"
-                       class="nav-link px-3 py-2 {{ $tipoActual === 'vitrina' ? 'active fw-semibold' : 'text-secondary' }}">
+                       class="nav-link px-3 py-2 {{ $tipoActual === $tipo ? 'active fw-semibold' : 'text-secondary' }}">
 
-                        <i class="bi bi-shop me-1"></i>
-                        Vitrina
+                        <i class="bi bi-{{ $icono }} me-1"></i>
+                        {{ $etiqueta }}
                     </a>
                 @endif
 
-                @if($ubicacionesTabs->has('bodega'))
-                    <a href="{{ route('inventario.index', [
-                        'tipo' => 'bodega',
-                        'producto_id' => request('producto_id'),
-                        'buscar' => request('buscar')
-                    ]) }}"
-                       class="nav-link px-3 py-2 {{ $tipoActual === 'bodega' ? 'active fw-semibold' : 'text-secondary' }}">
-
-                        <i class="bi bi-box-seam me-1"></i>
-                        Bodega
-                    </a>
-                @endif
-
-                @if($ubicacionesTabs->has('frigorifica'))
-                    <a href="{{ route('inventario.index', [
-                        'tipo' => 'frigorifica',
-                        'producto_id' => request('producto_id'),
-                        'buscar' => request('buscar')
-                    ]) }}"
-                       class="nav-link px-3 py-2 {{ $tipoActual === 'frigorifica' ? 'active fw-semibold' : 'text-secondary' }}">
-
-                        <i class="bi bi-snow me-1"></i>
-                        Frigorífica
-                    </a>
-                @endif
+                @endforeach
 
             </div>
 
@@ -409,6 +402,7 @@
                             <td class="text-end">
 
                                 @can('gestionar_stock')
+                                    @if(in_array($ubicacionActual->tipo, ['bodega', 'frigorifica', 'vitrina', 'vitrina_refrigerada'], true))
                                     <button type="button"
                                             class="btn btn-sm btn-outline-success btn-trasladar"
 
@@ -416,14 +410,23 @@
                                             data-producto-nombre="{{ $s->producto?->nombre }}"
                                             data-producto-codigo="{{ $s->producto?->codigo_interno }}"
                                             data-producto-detalle="{{ $s->producto?->concentracion }}"
-
+                                            data-producto-condicion="{{ $s->producto?->condicion_almacenamiento }}"
                                             data-ubicacion-id="{{ $ubicacionActual->id }}"
+                                            data-ubicacion-tipo="{{ $ubicacionActual->tipo }}"
                                             data-ubicacion-nombre="{{ $ubicacionActual->nombre }}">
 
                                         <i class="bi bi-arrow-left-right me-1"></i>
                                         Trasladar
 
                                     </button>
+                                    <button type="button" class="btn btn-sm btn-outline-warning btn-no-apto"
+                                            data-producto-id="{{ $s->producto_id }}"
+                                            data-producto-nombre="{{ $s->producto?->nombre }}"
+                                            data-ubicacion-id="{{ $ubicacionActual->id }}"
+                                            data-ubicacion-nombre="{{ $ubicacionActual->nombre }}">
+                                        Marcar como no apto
+                                    </button>
+                                    @endif
                                 @endcan
 
                             </td>
@@ -463,5 +466,6 @@
 </div>
 
 @include('inventario._modal-traslado')
+@include('inventario._modal-no-apto')
 
 @endsection

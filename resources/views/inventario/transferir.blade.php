@@ -55,8 +55,11 @@
                         <option value="">Seleccione un producto</option>
 
                         @foreach ($productos as $producto)
-                            <option value="{{ $producto->id }}"
-                                @selected(old('producto_id') == $producto->id)>
+                            <option
+                                value="{{ $producto->id }}"
+                                data-condicion="{{ $producto->condicion_almacenamiento }}"
+                                @selected(old('producto_id') == $producto->id)
+                            >
 
                                 {{ $producto->nombre }}
                                 ({{ $producto->codigo_interno }})
@@ -109,7 +112,9 @@
                         </option>
 
                         @foreach ($ubicaciones as $ubicacion)
-                            <option value="{{ $ubicacion->id }}"
+                            <option
+                            value="{{ $ubicacion->id }}"
+                            data-tipo="{{ $ubicacion->tipo }}"
                                 @selected(old('ubicacion_origen_id') == $ubicacion->id)>
 
                                 {{ $ubicacion->nombre }}
@@ -137,6 +142,7 @@
 
                         @foreach ($ubicaciones as $ubicacion)
                             <option value="{{ $ubicacion->id }}"
+                                data-tipo="{{ $ubicacion->tipo }}"
                                 @selected(old('ubicacion_destino_id') == $ubicacion->id)>
 
                                 {{ $ubicacion->nombre }}
@@ -178,6 +184,7 @@
                               name="motivo"
                               rows="3"
                               class="form-control"
+                              required maxlength="255"
                               placeholder="Indique el motivo del traslado">{{ old('motivo') }}</textarea>
                 </div>
 
@@ -208,34 +215,70 @@ const stock = @json($stock);
 const producto = document.getElementById('producto_id');
 const lote = document.getElementById('lote_id');
 const origen = document.getElementById('ubicacion_origen_id');
+const destino = document.getElementById('ubicacion_destino_id');
 const cantidad = document.getElementById('cantidad');
 const disponible = document.getElementById('stock-disponible');
 
-const lotes = [...lote.options];
-const ubicaciones = [...origen.options];
+const lotesOriginales = [...lote.options].map(
+    option => option.cloneNode(true)
+);
 
-producto.addEventListener('change', () => {
+const ubicacionesOriginales = [...origen.options].map(
+    option => option.cloneNode(true)
+);
 
+function obtenerCondicionProducto() {
+    const option = producto.options[producto.selectedIndex];
+
+    return option?.dataset.condicion || null;
+}
+
+function tiposPermitidos() {
+    const condicion = obtenerCondicionProducto();
+
+    if (condicion === 'refrigerado') {
+        return [
+            'frigorifica',
+            'vitrina_refrigerada'
+        ];
+    }
+
+    return condicion === 'ambiente' ? ['bodega', 'vitrina'] : [];
+}
+
+function cargarLotes() {
     lote.innerHTML = '';
 
-    lotes.forEach(option => {
-        if (!option.value || option.dataset.producto == producto.value) {
-            lote.appendChild(option.cloneNode(true));
+    lotesOriginales.forEach(option => {
+
+        if (
+            !option.value ||
+            option.dataset.producto == producto.value
+        ) {
+            lote.appendChild(
+                option.cloneNode(true)
+            );
         }
     });
 
-    origen.value = '';
-    disponible.textContent = '0';
-});
+    lote.value = '';
+}
 
-lote.addEventListener('change', () => {
-
+function cargarOrigenes() {
     origen.innerHTML = '';
 
-    ubicaciones.forEach(option => {
+    const permitidos = tiposPermitidos();
+
+    ubicacionesOriginales.forEach(option => {
 
         if (!option.value) {
-            origen.appendChild(option.cloneNode(true));
+            origen.appendChild(
+                option.cloneNode(true)
+            );
+            return;
+        }
+
+        if (!permitidos.includes(option.dataset.tipo)) {
             return;
         }
 
@@ -247,14 +290,60 @@ lote.addEventListener('change', () => {
         );
 
         if (existe) {
-            origen.appendChild(option.cloneNode(true));
+            origen.appendChild(
+                option.cloneNode(true)
+            );
         }
     });
 
-    disponible.textContent = '0';
-});
+    origen.value = '';
 
-origen.addEventListener('change', () => {
+    disponible.textContent = '0';
+
+    cantidad.value = '';
+    cantidad.removeAttribute('max');
+
+    cargarDestinos();
+}
+
+function cargarDestinos() {
+    destino.innerHTML = '';
+
+    const permitidos = tiposPermitidos();
+    const tipoOrigen = origen.options[origen.selectedIndex]?.dataset.tipo;
+
+    ubicacionesOriginales.forEach(option => {
+
+        if (!option.value) {
+
+            const placeholder =
+                option.cloneNode(true);
+
+            placeholder.textContent =
+                'Seleccione la ubicación de destino';
+
+            destino.appendChild(placeholder);
+
+            return;
+        }
+
+        if (!tipoOrigen || !permitidos.includes(option.dataset.tipo) || option.dataset.tipo === tipoOrigen) {
+            return;
+        }
+
+        if (option.value == origen.value) {
+            return;
+        }
+
+        destino.appendChild(
+            option.cloneNode(true)
+        );
+    });
+
+    destino.value = '';
+}
+
+function actualizarStockDisponible() {
 
     const registro = stock.find(s =>
         s.producto_id == producto.value &&
@@ -262,11 +351,63 @@ origen.addEventListener('change', () => {
         s.ubicacion_id == origen.value
     );
 
-    const stockActual = registro ? registro.cantidad : 0;
+    const stockActual =
+        registro ? parseInt(registro.cantidad) : 0;
 
     disponible.textContent = stockActual;
+
     cantidad.max = stockActual;
+
+    if (
+        parseInt(cantidad.value || 0) >
+        stockActual
+    ) {
+        cantidad.value = stockActual;
+    }
+}
+
+producto.addEventListener('change', () => {
+
+    cargarLotes();
+
+    origen.innerHTML =
+        '<option value="">Seleccione la ubicación de origen</option>';
+
+    destino.innerHTML =
+        '<option value="">Seleccione la ubicación de destino</option>';
+
+    disponible.textContent = '0';
+
+    cantidad.value = '';
+    cantidad.removeAttribute('max');
 });
+
+lote.addEventListener('change', () => {
+    cargarOrigenes();
+});
+
+origen.addEventListener('change', () => {
+
+    actualizarStockDisponible();
+
+    cargarDestinos();
+});
+
+// Aplicar los mismos filtros al recuperar un formulario con errores.
+const seleccionInicial = {
+    lote: lote.value,
+    origen: origen.value,
+    destino: destino.value,
+    cantidad: cantidad.value
+};
+cargarLotes();
+if ([...lote.options].some(op => op.value === seleccionInicial.lote)) lote.value = seleccionInicial.lote;
+cargarOrigenes();
+if ([...origen.options].some(op => op.value === seleccionInicial.origen)) origen.value = seleccionInicial.origen;
+cargarDestinos();
+if ([...destino.options].some(op => op.value === seleccionInicial.destino)) destino.value = seleccionInicial.destino;
+cantidad.value = seleccionInicial.cantidad;
+actualizarStockDisponible();
 </script>
 
 @endsection

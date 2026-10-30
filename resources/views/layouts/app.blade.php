@@ -40,8 +40,19 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
+
+
+    <script>
+    (function() {
+        var savedTheme = localStorage.getItem('theme') 
+            || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-bs-theme', savedTheme);
+    })();
+</script>
+
 </head>
 
+@stack('scripts')
 <body>
     <!-- =====================================================
          BARRA SUPERIOR
@@ -162,6 +173,13 @@
 
                     </a>
                 @endrole
+
+                @can('gestionar_recetas')
+                    <a href="{{ route('recetas.index') }}"
+                       class="nav-link {{ request()->routeIs('recetas.*', 'medicos.*') ? 'active' : '' }}">
+                        <i class="bi bi-file-earmark-medical me-2"></i> Recetas
+                    </a>
+                @endcan
 
                 <!-- CAJA -->
 
@@ -1365,29 +1383,31 @@
 
 
     <script>
-        // ===== TEMA CLARO / OSCURO =====
+        // ===== TEMA CLARO / OSCURO (BOTÓN) =====
         (function () {
             const htmlEl = document.documentElement;
             const btn    = document.getElementById('themeToggle');
             const icon   = document.getElementById('themeIcon');
 
-            // Cargar preferencia
-            const saved = localStorage.getItem('theme')
-                || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            apply(saved);
+            // 1. Asegurarnos de que el ícono coincida con el tema guardado
+            if (icon) {
+                const currentTheme = htmlEl.getAttribute('data-bs-theme');
+                icon.className = currentTheme === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
+            }
 
+            // 2. Evento del botón
             btn && btn.addEventListener('click', () => {
                 const next = htmlEl.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
-                apply(next);
+                
+                // Aplicar tema
+                htmlEl.setAttribute('data-bs-theme', next);
                 localStorage.setItem('theme', next);
-            });
-
-            function apply(theme) {
-                htmlEl.setAttribute('data-bs-theme', theme);
+                
+                // Cambiar ícono
                 if (icon) {
-                    icon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
+                    icon.className = next === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
                 }
-            }
+            });
         })();
     </script>
 

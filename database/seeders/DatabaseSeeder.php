@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use App\Models\UbicacionAlmacen;
 
 class DatabaseSeeder extends Seeder
 {
@@ -29,28 +30,12 @@ class DatabaseSeeder extends Seeder
             'ver_reportes_globales',
         ];
 
-        /*
-        |--------------------------------------------------------------------------
-        | CREAR PERMISOS
-        |--------------------------------------------------------------------------
-        | firstOrCreate evita duplicar permisos si ejecutamos el seeder
-        | más de una vez.
-        */
-
         foreach ($permisos as $permiso) {
             Permission::firstOrCreate([
                 'name' => $permiso,
                 'guard_name' => 'web',
             ]);
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | ADMINISTRADOR
-        |--------------------------------------------------------------------------
-        | Tiene todos los permisos del sistema.
-        | Esta configuración es provisional y podrá ajustarse posteriormente.
-        */
 
         $adminRole = Role::firstOrCreate([
             'name' => 'Administrador',
@@ -113,13 +98,6 @@ class DatabaseSeeder extends Seeder
             'gestionar_stock',
         ]);
 
-        /*
-        | SEEDERS DE DATOS
-        |--------------------------------------------------------------------------
-        | Los roles y permisos anteriores forman parte de la configuración
-        | del sistema.
-        */
-
         $this->call([
             UsuariosSeeder::class,
 
@@ -132,5 +110,9 @@ class DatabaseSeeder extends Seeder
             CajaSeeder::class,
             PrecioSeeder::class,
         ]);
+   
     }
+
+
+    
 }

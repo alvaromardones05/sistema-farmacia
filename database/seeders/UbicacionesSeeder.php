@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\UbicacionAlmacen;
 
@@ -11,22 +10,18 @@ class UbicacionesSeeder extends Seeder
 {
     public function run(): void
     {
-        UbicacionAlmacen::create([
-            'nombre' => 'Vitrina Principal',
-            'tipo' => 'vitrina',
-            'activo' => true,
-        ]);
-
-        UbicacionAlmacen::create([
-            'nombre' => 'Bodega Central',
-            'tipo' => 'bodega',
-            'activo' => true,
-        ]);
-
-        UbicacionAlmacen::create([
-            'nombre' => 'Bodega Frigorífica',
-            'tipo' => 'frigorifica',
-            'activo' => true,
-        ]);
+        foreach ([
+            'bodega' => 'Bodega Central',
+            'frigorifica' => 'Cámara Frigorífica',
+            'vitrina' => 'Vitrina',
+            'vitrina_refrigerada' => 'Vitrina Refrigerada',
+            'cuarentena' => 'Productos no aptos para venta',
+            'canje' => 'Zona de Canje',
+        ] as $tipo => $nombre) {
+            UbicacionAlmacen::updateOrCreate(
+                ['tipo' => $tipo],
+                ['nombre' => $nombre, 'activo' => true]
+            );
+        }
     }
 }

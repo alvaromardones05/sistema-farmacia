@@ -42,12 +42,19 @@ class RecetaDetalle extends Model
      
     public function dispensar(int $cantidad): void
     {
+        if ($this->estado === 'cancelado' || $cantidad < 1
+            || $cantidad > $this->cantidad_prescrita - $this->cantidad_dispensada) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'detalles' => 'La cantidad supera el saldo autorizado de la receta.',
+            ]);
+        }
+
         $this->cantidad_dispensada += $cantidad;
 
         if ($this->cantidad_dispensada >= $this->cantidad_prescrita) {
             $this->estado = 'dispensado';
         } else {
-            $this->estado = 'parcial';
+            $this->estado = 'pendiente';
         }
 
         $this->save();

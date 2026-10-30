@@ -21,6 +21,7 @@ class Receta extends Model
         'tipo',
         'estado',
         'observaciones',
+        'archivo_path',
     ];
 
     protected $casts = [
@@ -53,19 +54,31 @@ class Receta extends Model
     // Métodos
     public function estaVigente(): bool
     {
-        return $this->estado === 'vigente' && $this->fecha_vencimiento->isFuture();
+        return $this->estado === 'vigente'
+            && $this->fecha_emision->startOfDay()->lte(today())
+            && $this->fecha_vencimiento->startOfDay()->gte(today());
     }
 
     public function estaVencida(): bool
     {
-        return $this->fecha_vencimiento->isPast();
+        return $this->fecha_vencimiento->startOfDay()->lt(today());
     }
 
     // Scopes
     public function scopeVigentes($query)
     {
         return $query->where('estado', 'vigente')
-            ->whereDate('fecha_vencimiento', '>', now());
+            ->whereDate('fecha_emision', '<=', today())
+            ->whereDate('fecha_vencimiento', '>=', today());
+    }
+
+    public function getEstadoVisibleAttribute(): string
+    {
+        if (in_array($this->estado, ['pendiente', 'vigente']) && $this->estaVencida()) {
+            return 'Vencida';
+        }
+
+        return $this->estado === 'vigente' ? 'Aprobada' : ucfirst($this->estado);
     }
 
         /**

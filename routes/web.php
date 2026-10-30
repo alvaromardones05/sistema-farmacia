@@ -15,6 +15,8 @@ use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\RecepcionMercaderiaController;
 use App\Http\Controllers\DescuadreStockControladoController;
 use App\Http\Controllers\ConvenioController;
+use App\Http\Controllers\RecetaController;
+use App\Http\Controllers\MedicoController;
 
 
 // Página principal
@@ -28,6 +30,21 @@ Route::get('/', function () {
 // =====================================================
 
 Route::middleware(['auth', 'verified'])->group(function () {
+
+    Route::middleware('permission:gestionar_recetas')->group(function () {
+        Route::get('/recetas', [RecetaController::class, 'index'])->name('recetas.index');
+        Route::get('/recetas/crear', [RecetaController::class, 'create'])->name('recetas.create');
+        Route::post('/recetas', [RecetaController::class, 'store'])->name('recetas.store');
+        Route::get('/recetas/{receta}', [RecetaController::class, 'show'])->whereNumber('receta')->name('recetas.show');
+        Route::get('/recetas/{receta}/archivo', [RecetaController::class, 'archivo'])->whereNumber('receta')->name('recetas.archivo');
+        Route::get('/medicos/crear', [MedicoController::class, 'create'])->name('medicos.create');
+        Route::post('/medicos', [MedicoController::class, 'store'])->name('medicos.store');
+
+        Route::middleware(['role:Químico Farmacéutico', 'permission:validar_recetas'])->group(function () {
+            Route::post('/recetas/{receta}/aprobar', [RecetaController::class, 'aprobar'])->whereNumber('receta')->name('recetas.aprobar');
+            Route::post('/recetas/{receta}/rechazar', [RecetaController::class, 'rechazar'])->whereNumber('receta')->name('recetas.rechazar');
+        });
+    });
 
     // =================================================
     // DASHBOARD
@@ -248,6 +265,9 @@ Route::middleware('permission:ver_stock')->group(function () {
 
 // Escritura: quien tenga gestionar_stock (Técnico)
 Route::middleware('permission:gestionar_stock')->group(function () {
+
+    Route::post('/inventario/marcar-no-apto', [InventarioController::class, 'marcarNoApto'])
+        ->name('inventario.marcar-no-apto');
 
     Route::post('/inventario/transferir', [InventarioController::class, 'transferir'])
         ->name('inventario.transferir');

@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\DescuadreStockControlado;
 use App\Models\MovimientoStock;
+use Illuminate\Validation\ValidationException;
 
 
 class InventarioController extends Controller
@@ -18,11 +19,11 @@ class InventarioController extends Controller
 
     public function index(Request $request)
 {
-    $tiposPermitidos = ['vitrina', 'bodega', 'frigorifica'];
-    $tipoActual = $request->get('tipo', 'vitrina');
+    $tiposPermitidos = ['bodega', 'frigorifica', 'vitrina', 'vitrina_refrigerada', 'cuarentena', 'canje'];
+    $tipoActual = $request->get('tipo', 'bodega');
 
-    if (!in_array($tipoActual, $tiposPermitidos)) {
-        $tipoActual = 'vitrina';
+    if (!in_array($tipoActual, $tiposPermitidos, true)) {
+        $tipoActual = 'bodega';
     }
 
     $ubicacionesTabs = UbicacionAlmacen::where('activo', true)
@@ -223,22 +224,25 @@ class InventarioController extends Controller
                 ->with('error', 'La ubicación de destino está inactiva.');
         }
 
-        if ($producto->condicion_almacenamiento === 'refrigerado'
-            && $destinoUbicacion->tipo !== 'frigorifica') {
+        $ubicacionesPermitidas = match ($producto->condicion_almacenamiento) {
+            'ambiente' => ['bodega', 'vitrina'],
+            'refrigerado' => ['frigorifica', 'vitrina_refrigerada'],
+            default => [],
+        };
+
+        if (
+            !in_array($origenUbicacion->tipo, $ubicacionesPermitidas, true)
+            || !in_array($destinoUbicacion->tipo, $ubicacionesPermitidas, true)
+            || $origenUbicacion->tipo === $destinoUbicacion->tipo
+        ) {
             return back()
                 ->withInput()
-                ->with('error', 'Este producto requiere almacenamiento refrigerado y no puede trasladarse a esta ubicación.');
-        }
-
-        $stockOrigen = Stock::where('producto_id', $producto->id)
-            ->where('lote_id', $lote->id)
-            ->where('ubicacion_id', $origenUbicacion->id)
-            ->first();
-
-        if (!$stockOrigen || $stockOrigen->cantidad < $validated['cantidad']) {
-            return back()
-                ->withInput()
-                ->with('error', 'No hay suficiente stock disponible en la ubicación de origen.');
+                ->with(
+                    'error',
+                    $producto->condicion_almacenamiento === 'refrigerado'
+                        ? 'Los productos refrigerados solo pueden trasladarse entre la Cámara Frigorífica y la Vitrina Refrigerada.'
+                        : 'Los productos de almacenamiento ambiente solo pueden trasladarse entre la Bodega Central y la Vitrina.'
+                );
         }
 
         try {
@@ -256,6 +260,18 @@ class InventarioController extends Controller
                 $destinoUbicacion,
                 $validated
             ) {
+                // Bloquear y comprobar el saldo dentro de la misma transacción.
+                $stocks = Stock::where('producto_id', $producto->id)
+                    ->where('lote_id', $lote->id)
+                    ->whereIn('ubicacion_id', [$origenUbicacion->id, $destinoUbicacion->id])
+                    ->orderBy('ubicacion_id')
+                    ->lockForUpdate()
+                    ->get();
+                $stockOrigen = $stocks->firstWhere('ubicacion_id', $origenUbicacion->id);
+                if (!$stockOrigen || $stockOrigen->cantidad < $validated['cantidad']) {
+                    throw new \RuntimeException('No hay suficiente stock disponible en la ubicación de origen.');
+                }
+
                 // Descontamos el stock de la ubicación de origen.
                 Stock::registrarSalida(
                     $producto,
@@ -278,7 +294,7 @@ class InventarioController extends Controller
                     'transferencia',
                     $validated['motivo']
                 );
-            });
+            }, 3);
 
             return back()->with(
                 'success',
@@ -290,6 +306,70 @@ class InventarioController extends Controller
                 ->withInput()
                 ->with('error', $e->getMessage());
         }
+    }
+
+    // ===================== MARCAR COMO NO APTO =====================
+
+    public function marcarNoApto(Request $request)
+    {
+        $validated = $request->validate([
+            'producto_id' => 'required|integer|exists:productos,id',
+            'lote_id' => 'required|integer|exists:lotes,id',
+            'ubicacion_origen_id' => 'required|integer|exists:ubicaciones_almacen,id',
+            'cantidad' => 'required|integer|min:1',
+            'motivo' => 'required|in:vencido,deteriorado,envase_danado,contaminado,otro',
+            'observacion' => 'nullable|string|max:1000',
+        ]);
+
+        $producto = Producto::find($validated['producto_id']);
+        $lote = Lote::find($validated['lote_id']);
+        $origen = UbicacionAlmacen::find($validated['ubicacion_origen_id']);
+
+        if (!$producto || !$lote || !$origen || (int) $lote->producto_id !== (int) $producto->id) {
+            throw ValidationException::withMessages(['lote_id' => 'El lote debe pertenecer al producto seleccionado.']);
+        }
+        if (!$origen->activo || !in_array($origen->tipo, ['bodega', 'frigorifica', 'vitrina', 'vitrina_refrigerada'], true)) {
+            throw ValidationException::withMessages(['ubicacion_origen_id' => 'El origen debe ser una ubicación normal activa; no se permite operar desde cuarentena o canje.']);
+        }
+
+        $cuarentena = UbicacionAlmacen::where('tipo', 'cuarentena')->where('activo', true)->first();
+        if (!$cuarentena) {
+            throw ValidationException::withMessages(['cuarentena' => 'No existe una ubicación de cuarentena activa.']);
+        }
+
+        $motivos = [
+            'vencido' => 'vencido', 'deteriorado' => 'deteriorado',
+            'envase_danado' => 'envase dañado', 'contaminado' => 'contaminado', 'otro' => 'otro',
+        ];
+        $motivo = 'Producto marcado como no apto: '.$motivos[$validated['motivo']];
+        $observacion = trim($validated['observacion'] ?? '');
+        if ($observacion !== '') $motivo .= ' - '.$observacion;
+
+        try {
+            // No exigir lote activo: también se retiran existencias vencidas o bloqueadas.
+            DB::transaction(function () use ($producto, $lote, $origen, $cuarentena, $validated, $motivo) {
+                $stocks = Stock::where('producto_id', $producto->id)
+                    ->where('lote_id', $lote->id)
+                    ->whereIn('ubicacion_id', [$origen->id, $cuarentena->id])
+                    ->orderBy('ubicacion_id')->lockForUpdate()->get();
+                $stockOrigen = $stocks->firstWhere('ubicacion_id', $origen->id);
+                if (!$stockOrigen || $stockOrigen->cantidad < $validated['cantidad']) {
+                    throw ValidationException::withMessages(['cantidad' => 'La cantidad supera el stock disponible en la ubicación de origen.']);
+                }
+
+                Stock::registrarSalida($producto, $lote, $origen, $validated['cantidad'],
+                    auth()->id(), 'transferencia', 'no_apto', $motivo);
+                Stock::registrarEntrada($producto, $lote, $cuarentena, $validated['cantidad'],
+                    auth()->id(), 'no_apto', $motivo);
+            }, 3);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            report($e);
+            return back()->withInput()->with('error', 'No fue posible trasladar el stock a cuarentena. No se confirmó la operación.');
+        }
+
+        return back()->with('success', 'Producto marcado como no apto y trasladado a cuarentena correctamente.');
     }
 
         // ===================== AJUSTE DE INVENTARIO =====================
@@ -572,6 +652,12 @@ class InventarioController extends Controller
         ->get();
 
     $ubicaciones = UbicacionAlmacen::where('activo', true)
+        ->whereIn('tipo', [
+            'bodega',
+            'frigorifica',
+            'vitrina',
+            'vitrina_refrigerada',
+        ])
         ->orderBy('nombre')
         ->get();
 

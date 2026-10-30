@@ -115,6 +115,13 @@
             </div>
             <div class="col-12">
                 <div class="form-check form-switch">
+                    <input type="hidden" name="requiere_receta" value="0">
+                    <input id="requiere_receta" type="checkbox" name="requiere_receta" value="1" class="form-check-input" @checked(old('requiere_receta', $producto?->requiere_receta))>
+                    <label for="requiere_receta" class="form-check-label">Requiere receta para su venta</label>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="form-check form-switch">
                     <input id="es_controlado" type="checkbox" name="es_controlado" value="1" class="form-check-input" @checked(old('es_controlado', $producto?->es_controlado))>
                     <label for="es_controlado" class="form-check-label">Medicamento controlado</label>
                 </div>

@@ -29,11 +29,16 @@ return new class extends Migration
                 ->onDelete('restrict');
 
             $table->integer('cantidad_recibida');
+            $table->integer('cantidad_aceptada')->default(0);
+            $table->integer('cantidad_rechazada')->default(0);
+
             $table->unsignedBigInteger('precio_unitario');
 
             $table->string('numero_lote', 100);
             $table->date('fecha_fabricacion')->nullable();
             $table->date('fecha_vencimiento');
+
+            $table->text('observacion')->nullable();
 
             $table->timestamps();
         });

@@ -22,6 +22,10 @@
         </div>
     @endif
 
+    @if (session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
+
     @if (!$aperturaCaja)
 
         <div class="card border-0 shadow-sm">
@@ -60,13 +64,20 @@
             </div>
         </div>
 
-    @elseif (!$ubicacionVenta)
+    @elseif ($ubicacionesVenta->isEmpty())
 
         <div class="alert alert-danger">
-            No existe una ubicación de tipo "vitrina" configurada.
+            No existe una Vitrina ni una Vitrina Refrigerada activa configurada.
         </div>
 
     @else
+
+        @if (!$ubicacionesVenta->has('vitrina') || !$ubicacionesVenta->has('vitrina_refrigerada'))
+            <div class="alert alert-warning">
+                No existe una {{ !$ubicacionesVenta->has('vitrina') ? 'Vitrina' : 'Vitrina Refrigerada' }} activa configurada.
+                Solo se ofrecen productos con stock en su ubicación de venta correspondiente.
+            </div>
+        @endif
 
         @php
             $pacientesParaJs = $pacientes->map(fn ($paciente) => [
@@ -110,10 +121,12 @@
                                     Buscar
                                 </button>
 
+                                @can('gestionar_pacientes')
                                 <a href="{{ route('pacientes.create', ['origen' => 'venta']) }}"
                                     class="btn btn-outline-secondary">
                                     + Registrar nuevo cliente
                                 </a>
+                                @endcan
                             </div>
 
                             <div id="paciente-resultado" class="form-text"
@@ -133,6 +146,47 @@
                         </div>
 
                     </div>
+                </div>
+            </div>
+
+            {{-- RECETAS DEL PACIENTE Y ASOCIACIONES POR PRODUCTO --}}
+            <div class="card border-0 shadow-sm mb-4" id="recetas-tarjeta"
+                @can('gestionar_recetas') data-registro-url="{{ route('recetas.create') }}" @endcan>
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <strong>Recetas del paciente</strong>
+                    <kbd>F4</kbd>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">Gestiona las recetas asociadas al cliente.</p>
+                    <p id="recetas-paciente" class="mb-2" role="status" aria-live="polite">Selecciona un paciente para consultar o registrar sus recetas.</p>
+                    @can('gestionar_recetas')
+                        <div id="recetas-acciones" class="d-flex flex-wrap gap-2 mb-2 d-none">
+                            <button type="button" id="ver-recetas-paciente" class="btn btn-sm btn-outline-primary" aria-expanded="false" aria-controls="recetas-paciente-panel">Ver recetas</button>
+                            <a id="registrar-receta-paciente" class="btn btn-sm btn-outline-secondary">+ Registrar receta</a>
+                        </div>
+                        <div id="recetas-paciente-panel" class="mb-3" hidden>
+                            <h2 id="recetas-paciente-titulo" class="h6" tabindex="-1">Recetas registradas</h2>
+                            <div id="recetas-paciente-lista"></div>
+                        </div>
+                    @endcan
+                    <p id="recetas-resumen" class="mb-0" role="status" aria-live="polite">No requerida para los productos actuales.</p>
+                    <div id="recetas-mensaje" class="small text-warning" role="status" aria-live="polite"></div>
+                    <div id="recetas-productos"></div>
+                </div>
+                <div id="receta-producto-bloque" class="card-body border-top" hidden>
+                    <h2 id="receta-producto-titulo" class="h6">Buscar receta</h2>
+                    <p id="receta-producto-aviso" class="small text-muted" role="status"></p>
+                    <label for="receta-producto" class="form-label">Recetas aprobadas compatibles y con saldo suficiente</label>
+                    <select id="receta-producto" class="form-select mb-2"></select>
+                    <p id="receta-producto-info" class="small text-muted"></p>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" id="asociar-receta" class="btn btn-primary btn-sm">Seleccionar receta</button>
+                        @can('gestionar_recetas')
+                            <a id="registrar-receta" href="{{ route('recetas.create') }}" class="btn btn-outline-secondary btn-sm">Registrar nueva receta</a>
+                        @endcan
+                        <button type="button" id="cerrar-busqueda-receta" class="btn btn-link btn-sm">Cerrar</button>
+                    </div>
+                    <div class="form-text">Al registrar una nueva receta se abandona esta venta y se pierde el carrito. La receta necesitará aprobación antes de usarse.</div>
                 </div>
             </div>
 
@@ -216,6 +270,7 @@
                                 <th>Producto</th>
                                 <th>Cantidad</th>
                                 <th>Precio unit.</th>
+                                <th>Receta</th>
                                 <th>Beneficio</th>
                                 <th>Subtotal neto</th>
                                 <th></th>
@@ -224,7 +279,7 @@
 
                         <tbody id="carrito-filas">
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-3">
+                                <td colspan="7" class="text-center text-muted py-3">
                                     Aún no hay productos agregados.
                                 </td>
                             </tr>
@@ -284,6 +339,8 @@
 
             const convenios = @json($conveniosParaJs);
             const pacientes = @json($pacientesParaJs);
+            const recetasDisponibles = @json($recetasParaJs);
+            const recetasPaciente = @json($recetasPacienteParaJs);
 
             const pacienteInput = document.getElementById('paciente_id');
             const pacienteRutInput = document.getElementById('paciente-rut');
@@ -297,6 +354,17 @@
             const beneficioInput = document.getElementById('producto-beneficio');
             const disponibleSpan = document.getElementById('producto-disponible');
             const btnAgregar = document.getElementById('btn-agregar');
+            const recetaProducto = document.getElementById('receta-producto');
+            const bloqueReceta = document.getElementById('receta-producto-bloque');
+            const recetasMensaje = document.getElementById('recetas-mensaje');
+            const recetasResumen = document.getElementById('recetas-resumen');
+            const recetasTarjeta = document.getElementById('recetas-tarjeta');
+            const recetasProductos = document.getElementById('recetas-productos');
+            const recetasPacientePanel = document.getElementById('recetas-paciente-panel');
+            const verRecetasPaciente = document.getElementById('ver-recetas-paciente');
+            const asociarReceta = document.getElementById('asociar-receta');
+            let indiceReceta = null;
+            let pacienteRecetas = pacienteInput.value;
 
             const carritoFilas = document.getElementById('carrito-filas');
             const detallesOcultos = document.getElementById('detalles-ocultos');
@@ -311,6 +379,160 @@
                 return pacientes.find(p => String(p.id) === pacienteInput.value) ?? null;
             }
 
+            function recetasParaProducto(productoId, tipo) {
+                return recetasDisponibles.filter(r => String(r.paciente_id) === pacienteInput.value
+                    && String(r.producto_id) === String(productoId)
+                    && (tipo === 'ninguna' || r.tipo === tipo));
+            }
+
+            function llenarRecetas(select, recetas, seleccionado = '') {
+                select.replaceChildren(new Option(recetas.length ? 'Selecciona una receta' : 'No existe una receta válida para este producto y cantidad.', ''));
+                recetas.forEach(r => select.add(new Option(`#${r.numero} · emitida ${r.emision} · vence ${r.vencimiento} · disponible ${r.disponible}`, String(r.id))));
+                select.value = String(seleccionado || (recetas.length === 1 ? recetas[0].id : ''));
+            }
+
+            function recetaDeItem(item) {
+                return recetasParaProducto(item.producto_id, item.tipo_receta)
+                    .find(r => String(r.id) === String(item.receta_detalle_id));
+            }
+
+            function recetaValidaItem(item) {
+                const receta = recetaDeItem(item);
+                return !!receta && item.cantidad <= receta.disponible;
+            }
+
+            function actualizarInformacionReceta() {
+                const item = carrito[indiceReceta];
+                const receta = item ? recetasParaProducto(item.producto_id, item.tipo_receta)
+                    .find(r => String(r.id) === recetaProducto.value && r.disponible >= item.cantidad) : null;
+                document.getElementById('receta-producto-info').textContent = receta
+                    ? `Autorizada: ${receta.cantidad_prescrita} · Ya dispensada: ${receta.cantidad_dispensada} · Disponible: ${receta.disponible}`
+                    : '';
+                asociarReceta.disabled = !receta;
+            }
+
+            function requerirPacienteRecetas() {
+                if (!obtenerPacienteActual()) {
+                    recetasMensaje.textContent = 'Selecciona primero un paciente para consultar sus recetas.';
+                    pacienteRutInput.focus(); pacienteRutInput.select();
+                    return false;
+                }
+                return true;
+            }
+
+            function abrirRecetasPaciente() {
+                if (!requerirPacienteRecetas()) return;
+                if (!recetasPacientePanel) {
+                    recetasMensaje.textContent = 'No tienes permiso para consultar el módulo de recetas.';
+                    return;
+                }
+                recetasPacientePanel.hidden = false;
+                verRecetasPaciente.setAttribute('aria-expanded', 'true');
+                document.getElementById('recetas-paciente-titulo').focus();
+            }
+
+            function abrirRecetas(index = null) {
+                if (!requerirPacienteRecetas()) return;
+                const pendiente = carrito.findIndex(item => item.requiere_receta && !recetaValidaItem(item));
+                if (index === null && pendiente < 0) {
+                    abrirRecetasPaciente();
+                    return;
+                }
+                indiceReceta = index ?? pendiente;
+                const item = carrito[indiceReceta];
+                if (!item?.requiere_receta) {
+                    recetasMensaje.textContent = 'Agrega al carrito un producto que requiera receta para asociarla.';
+                    return;
+                }
+                const recetas = recetasParaProducto(item.producto_id, item.tipo_receta)
+                    .filter(r => r.disponible >= item.cantidad);
+                document.getElementById('receta-producto-titulo').textContent = `Recetas para ${item.nombre}`;
+                document.getElementById('receta-producto-aviso').textContent = recetas.length
+                    ? `Paciente: ${obtenerPacienteActual().nombre}. Cantidad a dispensar: ${item.cantidad}.`
+                    : 'No existe una receta válida para este producto y cantidad.';
+                llenarRecetas(recetaProducto, recetas, item.receta_detalle_id);
+                const registrar = document.getElementById('registrar-receta');
+                if (registrar) {
+                    registrar.href = urlRegistroReceta(item);
+                }
+                bloqueReceta.hidden = false;
+                actualizarInformacionReceta();
+                recetaProducto.focus();
+            }
+
+            function urlRegistroReceta(item = null) {
+                const url = new URL(recetasTarjeta.dataset.registroUrl, window.location.origin);
+                if (pacienteInput.value) url.searchParams.set('paciente_id', pacienteInput.value);
+                if (item) url.searchParams.set('producto_id', item.producto_id);
+                url.searchParams.set('origen', 'venta');
+                return url.toString();
+            }
+
+            function actualizarRecetasPaciente() {
+                const paciente = obtenerPacienteActual();
+                const recetas = recetasPaciente.filter(r => String(r.paciente_id) === pacienteInput.value)
+                    .sort((a, b) => Number(b.disponible) - Number(a.disponible));
+                const aprobadas = recetas.filter(r => r.disponible).length;
+                const pendientes = recetas.filter(r => r.estado === 'Pendiente').length;
+                document.getElementById('recetas-paciente').textContent = paciente
+                    ? `${paciente.nombre} · RUT: ${paciente.rut}${verRecetasPaciente ? ` · ${aprobadas} recetas aprobadas disponibles · ${pendientes} pendientes de revisión` : ''}`
+                    : 'Selecciona un paciente para consultar o registrar sus recetas.';
+                if (!verRecetasPaciente) return;
+                document.getElementById('recetas-acciones').classList.toggle('d-none', !paciente);
+                const registrar = document.getElementById('registrar-receta-paciente');
+                if (paciente) registrar.href = urlRegistroReceta();
+                else registrar.removeAttribute('href');
+                const lista = document.getElementById('recetas-paciente-lista');
+                lista.innerHTML = '';
+                if (!paciente) return;
+                if (!recetas.length) lista.textContent = 'Este paciente no tiene recetas registradas.';
+                recetas.forEach(receta => {
+                    lista.insertAdjacentHTML('beforeend', `
+                        <div class="border-top py-2">
+                            <strong>${escaparHtml(receta.numero)}</strong> · ${escaparHtml(receta.estado === 'Pendiente' ? 'Pendiente de validación' : receta.estado)}
+                            ${receta.disponible ? '<span class="small text-success"> · Disponible para dispensar</span>' : ''}
+                            <div class="small text-muted">Emisión: ${escaparHtml(receta.emision)} · Vence: ${escaparHtml(receta.vencimiento)} · ${escaparHtml(receta.medico)}</div>
+                            <a href="${escaparHtml(receta.url)}" target="_blank" rel="noopener" class="small">Ver detalle (otra pestaña)</a>
+                        </div>
+                    `);
+                });
+            }
+
+            function renderRecetas() {
+                const conReceta = carrito.filter(item => item.requiere_receta);
+                recetasResumen.textContent = conReceta.length
+                    ? (conReceta.every(recetaValidaItem)
+                        ? '✓ Todas las recetas requeridas están asociadas.'
+                        : `${conReceta.filter(item => !recetaValidaItem(item)).length} medicamentos requieren asociar una receta válida.`)
+                    : 'No requerida para los productos actuales.';
+                recetasProductos.innerHTML = '';
+                carrito.forEach((item, index) => {
+                    if (!item.requiere_receta) return;
+                    const receta = recetaDeItem(item);
+                    const valida = recetaValidaItem(item);
+                    recetasProductos.insertAdjacentHTML('beforeend', `
+                        <div class="border-top pt-3 mt-3">
+                            <strong class="d-block">${escaparHtml(item.nombre)}</strong>
+                            <span class="badge text-bg-${valida ? 'success' : 'warning'} mt-1">${valida ? '✓ Receta válida' : '⚠ Requiere receta'}</span>
+                            ${receta ? `
+                                <div class="small mt-1">${escaparHtml(receta.numero)} · Aprobada · vence ${escaparHtml(receta.vencimiento)}</div>
+                                <div class="small text-muted">Autorizado: ${receta.cantidad_prescrita} · Disponible: ${receta.disponible} · Venta actual: ${item.cantidad}</div>
+                                ${!valida ? `<div class="small text-danger">La receta solo permite dispensar ${receta.disponible} unidades adicionales.</div>` : ''}
+                            ` : '<div class="small text-muted mt-1">Sin receta asociada</div>'}
+                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-buscar-receta="${index}">${receta ? 'Cambiar receta' : 'Seleccionar receta'}</button>
+                                ${!receta && obtenerPacienteActual() && recetasTarjeta.dataset.registroUrl ? `<a href="${escaparHtml(urlRegistroReceta(item))}" data-registrar-receta class="btn btn-sm btn-outline-secondary">Registrar nueva receta</a>` : ''}
+                            </div>
+                        </div>
+                    `);
+                });
+            }
+
+            function escaparHtml(texto) {
+                const span = document.createElement('span'); span.textContent = texto;
+                return span.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            }
+
             function obtenerConvenioActual() {
                 const paciente = obtenerPacienteActual();
                 return paciente?.convenio_id
@@ -318,14 +540,27 @@
                     : null;
             }
 
-            function mostrarPaciente(mensaje = 'Venta libre / sin paciente') {
+            function mostrarPaciente(mensaje = 'La venta puede continuar como consumidor final. Para usar recetas, selecciona un paciente.') {
                 const paciente = obtenerPacienteActual();
                 const convenio = obtenerConvenioActual();
+
+                if (pacienteRecetas !== pacienteInput.value) {
+                    if (recetasPacientePanel) {
+                        recetasPacientePanel.hidden = true;
+                        verRecetasPaciente.setAttribute('aria-expanded', 'false');
+                    }
+                    const teniaRecetas = carrito.some(item => item.receta_detalle_id);
+                    carrito.forEach(item => { item.receta_detalle_id = null; });
+                    recetasMensaje.textContent = teniaRecetas
+                        ? 'Se quitaron las recetas seleccionadas porque cambió el paciente.' : '';
+                    pacienteRecetas = pacienteInput.value;
+                }
 
                 pacienteResultado.textContent = paciente
                     ? `✓ ${paciente.nombre} · RUT: ${paciente.rut} · Convenio: ${convenio?.nombre ?? 'Sin convenio'}`
                     : mensaje;
 
+                actualizarRecetasPaciente();
                 actualizarConvenio();
             }
 
@@ -415,16 +650,6 @@
                     return;
                 }
 
-                if (opcion.dataset.requiereReceta === '1') {
-                    alert(
-                        `El medicamento "${opcion.dataset.nombre}" requiere receta (${opcion.dataset.tipoReceta}) y no puede agregarse a una venta libre.`
-                    );
-
-                    productoSelect.value = '';
-                    actualizarProductoSeleccionado();
-                    return;
-                }
-
                 const precio = Number(opcion.dataset.precio);
                 const estimacion = calcularEstimacion(productoSelect.value, precio);
 
@@ -455,7 +680,7 @@
                 const cantidadTotal = cantidad + (existente?.cantidad ?? 0);
 
                 if (cantidadTotal > disponible) {
-                    alert('La cantidad supera el stock disponible en vitrina.');
+                    alert('La cantidad supera el stock disponible en la ubicación de venta del producto.');
                     return;
                 }
 
@@ -466,7 +691,10 @@
                         producto_id: productoId,
                         nombre: opcion.dataset.nombre,
                         cantidad,
-                        precio
+                        precio,
+                        requiere_receta: opcion.dataset.requiereReceta === '1',
+                        tipo_receta: opcion.dataset.tipoReceta,
+                        receta_detalle_id: null
                     });
                 }
 
@@ -494,13 +722,16 @@
             }
 
             function renderCarrito() {
+                indiceReceta = null;
+                bloqueReceta.hidden = true;
                 carritoFilas.innerHTML = '';
                 detallesOcultos.innerHTML = '';
+                renderRecetas();
 
                 if (!carrito.length) {
                     carritoFilas.innerHTML = `
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-3">
+                            <td colspan="7" class="text-center text-muted py-3">
                                 Aún no hay productos agregados.
                             </td>
                         </tr>
@@ -512,8 +743,12 @@
                 }
 
                 let total = 0;
+                let recetasValidas = true;
 
                 carrito.forEach((item, index) => {
+                    const receta = item.requiere_receta ? recetaDeItem(item) : null;
+                    const recetaValida = item.requiere_receta && recetaValidaItem(item);
+                    if (item.requiere_receta && !recetaValida) recetasValidas = false;
                     const estimacion = calcularEstimacion(item.producto_id, item.precio);
                     const subtotalNeto = estimacion.precioFinal * item.cantidad;
 
@@ -521,9 +756,12 @@
 
                     carritoFilas.insertAdjacentHTML('beforeend', `
                         <tr>
-                            <td>${item.nombre}</td>
+                            <td>${escaparHtml(item.nombre)}</td>
                             <td>${item.cantidad}</td>
                             <td>$${Math.round(item.precio).toLocaleString('es-CL')}</td>
+                            <td>${item.requiere_receta ? `
+                                <span class="badge text-bg-${recetaValida ? 'success' : 'warning'}">${recetaValida ? 'Receta seleccionada' : 'Requiere receta'}</span>
+                                <button type="button" class="btn btn-sm btn-outline-primary mt-1" data-buscar-receta="${index}">${receta ? 'Cambiar receta' : 'Buscar receta'}</button>` : 'No requiere'}</td>
                             <td>
                                 <span class="badge text-bg-light border">
                                     ${estimacion.texto}
@@ -548,13 +786,14 @@
                         <input type="hidden"
                             name="detalles[${index}][cantidad]"
                             value="${item.cantidad}">
+                        ${item.receta_detalle_id ? `<input type="hidden" name="detalles[${index}][receta_detalle_id]" value="${Number(item.receta_detalle_id)}">` : ''}
                     `);
                 });
 
                 totalAproximado.textContent =
                     Math.round(total).toLocaleString('es-CL');
 
-                btnConfirmar.disabled = false;
+                btnConfirmar.disabled = !recetasValidas;
             }
 
             document.addEventListener('keydown', event => {
@@ -568,6 +807,11 @@
                     event.preventDefault();
                     pacienteRutInput.focus();
                     pacienteRutInput.select();
+                }
+
+                if (event.key === 'F4' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+                    event.preventDefault();
+                    abrirRecetas();
                 }
             });
 
@@ -609,6 +853,11 @@
             });
 
             carritoFilas.addEventListener('click', event => {
+                const buscar = event.target.closest('button[data-buscar-receta]');
+                if (buscar) {
+                    abrirRecetas(Number(buscar.dataset.buscarReceta));
+                    return;
+                }
                 const boton = event.target.closest('button[data-index]');
                 if (!boton) return;
 
@@ -616,11 +865,50 @@
                 renderCarrito();
             });
 
+            verRecetasPaciente?.addEventListener('click', () => {
+                if (!requerirPacienteRecetas()) return;
+                if (recetasPacientePanel.hidden) abrirRecetasPaciente();
+                else {
+                    recetasPacientePanel.hidden = true;
+                    verRecetasPaciente.setAttribute('aria-expanded', 'false');
+                }
+            });
+            recetasProductos.addEventListener('click', event => {
+                const buscar = event.target.closest('button[data-buscar-receta]');
+                if (buscar) abrirRecetas(Number(buscar.dataset.buscarReceta));
+                if (event.target.closest('a[data-registrar-receta]') && !obtenerPacienteActual()) {
+                    event.preventDefault();
+                    abrirRecetas();
+                }
+            });
+            recetaProducto.addEventListener('change', actualizarInformacionReceta);
+            document.getElementById('cerrar-busqueda-receta').addEventListener('click', () => {
+                bloqueReceta.hidden = true; indiceReceta = null;
+            });
+            asociarReceta.addEventListener('click', () => {
+                const item = carrito[indiceReceta];
+                if (!item || !obtenerPacienteActual()) return;
+                const receta = recetasParaProducto(item.producto_id, item.tipo_receta)
+                    .find(r => String(r.id) === recetaProducto.value && r.disponible >= item.cantidad);
+                if (!receta) return;
+                item.receta_detalle_id = receta.id;
+                recetasMensaje.textContent = '';
+                renderCarrito();
+                codigoBarraInput.focus();
+            });
+            document.getElementById('form-venta').addEventListener('submit', event => {
+                const pendiente = carrito.find(item => item.requiere_receta && !recetaValidaItem(item));
+                if (!pendiente) return;
+                event.preventDefault();
+                recetasMensaje.textContent = `Falta asociar una receta válida para ${pendiente.nombre}.`;
+                abrirRecetas();
+            });
+
             const pacienteInicial = obtenerPacienteActual();
 
             pacienteRutInput.value = pacienteInicial?.rut ?? '';
             mostrarPaciente();
-            codigoBarraInput.focus();
+            codigoBarraInput.focus({ preventScroll: true });
         </script>
 
     @endif

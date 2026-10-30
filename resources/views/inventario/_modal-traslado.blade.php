@@ -99,7 +99,10 @@
                             <option value="">Seleccione</option>
 
                             @foreach($ubicaciones as $ubicacion)
-                                <option value="{{ $ubicacion->id }}">
+                                <option
+                                    value="{{ $ubicacion->id }}"
+                                    data-tipo="{{ $ubicacion->tipo }}"
+                                >
                                     {{ $ubicacion->nombre }}
                                 </option>
                             @endforeach
@@ -204,8 +207,16 @@ document.addEventListener('DOMContentLoaded',()=>{
         lote.innerHTML='<option value="">Seleccione un lote</option>';
         destino.value='';
 
+        const pares = btn.dataset.productoCondicion === 'ambiente'
+            ? {bodega: 'vitrina', vitrina: 'bodega'}
+            : btn.dataset.productoCondicion === 'refrigerado'
+                ? {frigorifica: 'vitrina_refrigerada', vitrina_refrigerada: 'frigorifica'}
+                : {};
+        const tipoDestino = pares[btn.dataset.ubicacionTipo];
         destino.querySelectorAll('option').forEach(op=>{
-            op.disabled=op.value!==''&&Number(op.value)===u;
+            const permitido = !op.value || (tipoDestino && op.dataset.tipo === tipoDestino && Number(op.value) !== u);
+            op.disabled = !permitido;
+            op.hidden = !permitido;
         });
 
         const registros=stock.filter(s=>
