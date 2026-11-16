@@ -41,15 +41,22 @@
 
                 @role('Bodeguero')
                 @if($puedeRecibir)
-                    <a
-                        href="{{ route('compras.recepciones.create', $orden) }}"
-                        class="btn btn-primary"
-                    >
-                        <i class="bi bi-box-arrow-in-down me-1"></i>
-                        Recibir mercadería
+                    <a href="{{ route('compras.recepciones.create', $orden) }}" class="btn btn-primary">
+                        <i class="bi bi-box-arrow-in-down me-1"></i> Recibir mercadería
                     </a>
                 @endif
                 @endrole
+
+                <!-- Botones PDF -->
+                <a href="{{ route('compras.pdf', $orden) }}" class="btn btn-outline-danger">
+                    <i class="bi bi-file-earmark-pdf me-1"></i> Orden PDF
+                </a>
+                <a href="{{ route('compras.guia', $orden) }}" class="btn btn-outline-danger">
+                    <i class="bi bi-truck me-1"></i> Guía Despacho
+                </a>
+                <a href="{{ route('compras.acta', $orden) }}" class="btn btn-outline-danger">
+                    <i class="bi bi-file-earmark-text me-1"></i> Acta de Recepción
+                </a>
             </div>
         </div>
     </div>

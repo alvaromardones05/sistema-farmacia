@@ -8,8 +8,8 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0">Ventas</h1>
         <div class="d-flex gap-2">
-            <a href="{{ route('ventas.reporte-diario') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-graph-up me-1"></i>Reporte del día
+            <a href="{{ route('ventas.reportes') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-bar-chart-line me-1"></i> Reportes de Ventas
             </a>
             <a href="{{ route('ventas.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-lg me-1"></i>Nueva venta

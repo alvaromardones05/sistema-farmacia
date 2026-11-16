@@ -164,6 +164,88 @@ class Producto extends Model
         return Stock::where('producto_id', $this->id)->sum('cantidad');
     }
 
+    public function getStockReserva(): int
+    {
+        return $this->stockEnUbicaciones(['bodega', 'frigorifica'])->sum('cantidad');
+    }
+
+    public function getStockVendible(): int
+    {
+        $ubicacionVenta = match ($this->condicion_almacenamiento) {
+            'ambiente' => 'vitrina',
+            'refrigerado' => 'vitrina_refrigerada',
+            default => null,
+        };
+
+        if (!$this->activo || !$ubicacionVenta) {
+            return 0;
+        }
+
+        $ubicacion = UbicacionAlmacen::query()
+            ->where('tipo', $ubicacionVenta)
+            ->where('activo', true)
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$ubicacion) {
+            return 0;
+        }
+
+        return $this->stock()
+            ->where('cantidad', '>', 0)
+            ->where('ubicacion_id', $ubicacion->id)
+            ->whereHas('lote', fn($query) => $query
+                ->where('estado', 'activo')
+                ->whereDate('fecha_vencimiento', '>=', today()))
+            ->sum('cantidad');
+    }
+
+    public function getStockNoVendible(): int
+    {
+        return $this->stockEnUbicaciones(['cuarentena', 'canje'])->sum('cantidad');
+    }
+
+    public function getStockUtilizable(): int
+    {
+        return (int) (static::queryStockUtilizablePorProducto()
+            ->where('stock.producto_id', $this->id)
+            ->value('stock_utilizable') ?? 0);
+    }
+
+    public function estaBajoStockUtilizable(): bool
+    {
+        return $this->getStockUtilizable() <= $this->stock_minimo;
+    }
+
+    public function estaEnStockCriticoUtilizable(): bool
+    {
+        return $this->getStockUtilizable() <= $this->stock_critico;
+    }
+
+    public static function queryStockUtilizablePorProducto()
+    {
+        return Stock::query()
+            ->join('productos as productos_utilizables', 'stock.producto_id', '=', 'productos_utilizables.id')
+            ->join('ubicaciones_almacen as ubicaciones_utilizables', 'stock.ubicacion_id', '=', 'ubicaciones_utilizables.id')
+            ->where(function ($query) {
+                $query->where(function ($subquery) {
+                    $subquery->where('productos_utilizables.condicion_almacenamiento', 'ambiente')
+                        ->whereIn('ubicaciones_utilizables.tipo', ['bodega', 'vitrina']);
+                })->orWhere(function ($subquery) {
+                    $subquery->where('productos_utilizables.condicion_almacenamiento', 'refrigerado')
+                        ->whereIn('ubicaciones_utilizables.tipo', ['frigorifica', 'vitrina_refrigerada']);
+                });
+            })
+            ->select('stock.producto_id')
+            ->selectRaw('SUM(stock.cantidad) as stock_utilizable')
+            ->groupBy('stock.producto_id');
+    }
+
+    private function stockEnUbicaciones(array $tipos)
+    {
+        return $this->stock()->whereHas('ubicacion', fn($query) => $query->whereIn('tipo', $tipos));
+    }
+
     /**
      * Obtener próximo lote FEFO
      */

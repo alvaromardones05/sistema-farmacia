@@ -132,9 +132,12 @@
             {{ config('app.name', 'Sistema Farmacia') }}
         </h2>
 
-        <strong>
-            BOLETA ELECTRÓNICA
-        </strong>
+        <div class="text-center mb-4">
+            <h2 class="fw-bold">
+                {{ $venta->tipo_documento === 'factura' ? 'FACTURA ELECTRÓNICA' : 'BOLETA ELECTRÓNICA' }}
+            </h2>
+            <p>N° {{ $venta->id }}</p>
+        </div>
 
         <div class="muted">
             Folio {{ $documento->folio }}
@@ -167,7 +170,10 @@
     <p>
         <strong>Cliente:</strong>
 
-        @if ($venta->paciente)
+        @if ($venta->tipo_documento === 'factura')
+            <strong>{{ $venta->razon_social }}</strong><br>
+            RUT: {{ $venta->rut_empresa }}
+        @elseif ($venta->paciente)
             {{ $venta->paciente->nombreCompleto() }}
         @else
             Consumidor final

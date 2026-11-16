@@ -15,7 +15,6 @@ Sube los cambios locales al repositorio remoto en tu rama principal (normalmente
                     git push origin main
 
 
-
 ===Cambios de colaborador===
 1. Asegúrate de no tener cambios pendientes sin guardar
 Antes de descargar lo nuevo, comprueba el estado de tu proyecto:

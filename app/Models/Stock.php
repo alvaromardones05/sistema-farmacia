@@ -39,6 +39,12 @@ class Stock extends Model
         return $this->hasMany(MovimientoStock::class, 'stock_id');
     }
 
+    public function scopeEnUbicacionesComerciales($query)
+    {
+        return $query->whereHas('ubicacion', fn($ubicacion) => $ubicacion
+            ->whereIn('tipo', ['bodega', 'frigorifica', 'vitrina', 'vitrina_refrigerada']));
+    }
+
         /**
      * Registrar entrada de stock
      */

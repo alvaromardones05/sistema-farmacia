@@ -8,6 +8,7 @@ use App\Http\Controllers\Web\UsuarioController;
 use App\Http\Controllers\LoteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\CanjeController;
 use App\Http\Controllers\AperturaCajaController;
 use App\Http\Controllers\PacienteController;
 use App\Http\Controllers\OrdenCompraController;
@@ -103,7 +104,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // =================================================
     // VENTAS
-    // Técnico + Químico 
+    // Técnico + Químico
     // =================================================
 
     Route::middleware('role:Químico Farmacéutico|Técnico Farmacéutico')->group(function () {
@@ -117,8 +118,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/ventas', [VentaController::class, 'store'])
             ->name('ventas.store');
 
-        Route::get('/ventas/reporte-diario', [VentaController::class, 'reporteDiario'])
-            ->name('ventas.reporte-diario');
+        Route::get('/ventas/reportes', [VentaController::class, 'reportes'])->name('ventas.reportes');
+
+        Route::get('/ventas/reportes/exportar', [VentaController::class, 'exportarReporte'])->name('ventas.reportes.exportar');
 
         Route::get('/ventas/{venta}/boleta', [VentaController::class, 'boleta'])
             ->whereNumber('venta')
@@ -132,7 +134,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereNumber('venta')
             ->name('ventas.anular'); });
 
-    
+
     Route::middleware('role:Químico Farmacéutico')->group(function () {
 
         Route::get(
@@ -251,16 +253,70 @@ Route::middleware('permission:ver_stock')->group(function () {
 
     Route::get('/inventario/{producto}/stock', [InventarioController::class, 'stockPorUbicacion'])
         ->name('inventario.stock');
-    
-    Route::get('/inventario/alertas', [InventarioController::class, 'alertas'])
-        ->name('inventario.alertas');   
 
-    Route::get('/inventario/proximos-vencer', [InventarioController::class, 'proximosAVencer'])
-        ->name('inventario.proximos-vencer');
+    Route::get('/inventario/alertas', [InventarioController::class, 'alertas'])
+        ->name('inventario.alertas');
 
     Route::get('/inventario/historial', [InventarioController::class, 'historial'])
         ->name('inventario.historial');
 
+});
+
+Route::get('/inventario/proximos-vencer', [InventarioController::class, 'proximosAVencer'])
+    ->middleware('permission:ver_stock|gestionar_stock')
+    ->name('inventario.proximos-vencer');
+
+Route::middleware('permission:ver_stock|gestionar_stock')->group(function () {
+    Route::get('/inventario/canjes', [CanjeController::class, 'index'])
+        ->name('inventario.canjes.index');
+
+    Route::get('/inventario/canjes/{canje}', [CanjeController::class, 'show'])
+        ->whereNumber('canje')
+        ->name('inventario.canjes.show');
+});
+
+Route::middleware('permission:gestionar_stock')->group(function () {
+    Route::get('/inventario/canjes/solicitar/{lote}', [CanjeController::class, 'create'])
+        ->whereNumber('lote')
+        ->name('inventario.canjes.create');
+
+    Route::post('/inventario/canjes/solicitar/{lote}', [CanjeController::class, 'store'])
+        ->whereNumber('lote')
+        ->name('inventario.canjes.store');
+});
+
+Route::middleware('role:Químico Farmacéutico')->group(function () {
+    Route::post('/inventario/canjes/{canje}/aprobar', [CanjeController::class, 'aprobar'])
+        ->whereNumber('canje')
+        ->name('inventario.canjes.aprobar');
+
+    Route::post('/inventario/canjes/{canje}/rechazar', [CanjeController::class, 'rechazar'])
+        ->whereNumber('canje')
+        ->name('inventario.canjes.rechazar');
+});
+
+Route::middleware('permission:gestionar_stock|autorizar_libro_isp')->group(function () {
+    Route::post('/inventario/canjes/{canje}/entregas', [CanjeController::class, 'registrarEntrega'])
+        ->whereNumber('canje')
+        ->name('inventario.canjes.entregas.store');
+
+    Route::post('/inventario/canjes/{canje}/entregas/{entrega}/devoluciones', [CanjeController::class, 'registrarDevolucion'])
+        ->whereNumber('canje')
+        ->whereNumber('entrega')
+        ->name('inventario.canjes.devoluciones.store');
+
+    Route::post('/inventario/canjes/{canje}/entregas/{entrega}/respuestas', [CanjeController::class, 'registrarRespuestaEntrega'])
+        ->whereNumber('canje')
+        ->whereNumber('entrega')
+        ->name('inventario.canjes.respuestas.store');
+
+    Route::post('/inventario/canjes/{canje}/reposiciones', [CanjeController::class, 'registrarReposicion'])
+        ->whereNumber('canje')
+        ->name('inventario.canjes.reposiciones.store');
+
+    Route::post('/inventario/canjes/{canje}/cerrar', [CanjeController::class, 'cerrar'])
+        ->whereNumber('canje')
+        ->name('inventario.canjes.cerrar');
 });
 
 // Escritura: quien tenga gestionar_stock (Técnico)
@@ -277,7 +333,7 @@ Route::middleware('permission:gestionar_stock')->group(function () {
 
     Route::post('/inventario/ajuste', [InventarioController::class, 'ajuste'])
         ->name('inventario.ajuste');
-    
+
     Route::get('/inventario/transferir', [InventarioController::class, 'mostrarTransferir'])
     ->name('inventario.transferir.form');
 
@@ -321,7 +377,7 @@ Route::middleware('permission:cerrar_caja')->group(function () {
     // Técnico + Químico + Bodeguero
     // =================================================
 
-    Route::middleware(['auth', 'verified', 'role:Químico Farmacéutico|Técnico Farmacéutico|Bodeguero'])->group(function () {
+    Route::middleware(['auth', 'verified', 'role:Químico Farmacéutico|Bodeguero'])->group(function () {
 
         Route::get('/compras', [OrdenCompraController::class, 'index'])
             ->name('compras.index');
@@ -333,7 +389,7 @@ Route::middleware('permission:cerrar_caja')->group(function () {
         Route::post('/compras', [OrdenCompraController::class, 'store'])
             ->middleware('role:Químico Farmacéutico')
             ->name('compras.store');
-        
+
         Route::post('/compras/recepciones/{recepcion}/aprobar', [RecepcionMercaderiaController::class, 'aprobar'])
             ->whereNumber('recepcion')
             ->name('compras.recepciones.aprobar');
@@ -367,11 +423,23 @@ Route::middleware('permission:cerrar_caja')->group(function () {
             Route::patch('/compras/proveedores/{proveedor}/estado', [ProveedorController::class, 'cambiarEstado'])
                 ->name('compras.proveedores.estado');
         });
-    });
+
+        // Generar PDF de Orden de Compra
+            Route::get('/compras/{orden}/pdf', [OrdenCompraController::class, 'pdf'])
+                ->whereNumber('orden')
+                ->name('compras.pdf');
+
+            // Generar Guía de Despacho (Simulada)
+            Route::get('/compras/recepciones/{recepcion}/guia', [RecepcionMercaderiaController::class, 'guia'])
+                ->whereNumber('recepcion')
+                ->name('compras.recepciones.guia');
+
+
+                });
 
     // RECEPCIONES
 
-    Route::middleware(['auth', 'verified', 'role:Químico Farmacéutico|Técnico Farmacéutico|Bodeguero'])->group(function () {
+    Route::middleware(['auth', 'verified', 'role:Químico Farmacéutico|Bodeguero'])->group(function () {
         Route::get('/compras/recepciones', [RecepcionMercaderiaController::class, 'index'])
             ->name('compras.recepciones.index');
 
@@ -388,6 +456,22 @@ Route::middleware('permission:cerrar_caja')->group(function () {
             ->middleware('role:Bodeguero')
             ->whereNumber('orden')
             ->name('compras.recepciones.store');
+
+        Route::get('/compras/{orden}/acta', [OrdenCompraController::class, 'acta'])
+            ->whereNumber('orden')
+            ->name('compras.acta');
+
+        Route::get('/compras/{orden}/pdf', [OrdenCompraController::class, 'pdf'])
+            ->whereNumber('orden')
+            ->name('compras.pdf');
+
+        Route::get('/compras/{orden}/guia', [OrdenCompraController::class, 'guia'])
+            ->whereNumber('orden')
+            ->name('compras.guia');
+
+        Route::get('/compras/{orden}/acta', [OrdenCompraController::class, 'acta'])
+            ->whereNumber('orden')
+            ->name('compras.acta');
     });
 
 

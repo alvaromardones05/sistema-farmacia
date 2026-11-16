@@ -17,7 +17,15 @@ class ProductoController extends Controller
     // ===================== LISTAR =====================
     public function index(Request $request)
 {
-    $query = Producto::query()->with(['categoria', 'laboratorio']);
+        $stockUtilizable = Producto::queryStockUtilizablePorProducto();
+        $query = Producto::query()
+            ->leftJoinSub($stockUtilizable, 'existencias_utilizables', function ($join) {
+                $join->on('productos.id', '=', 'existencias_utilizables.producto_id');
+            })
+            ->select('productos.*')
+            ->selectRaw('COALESCE(existencias_utilizables.stock_utilizable, 0) as stock_utilizable')
+            ->withSum('stock as stock_fisico', 'cantidad')
+            ->with(['categoria', 'laboratorio']);
 
     // Búsqueda
     if ($request->filled('buscar')) {
@@ -34,43 +42,37 @@ class ProductoController extends Controller
         $query->where('categoria_id', $request->categoria_id);
     }
 
-    // Estado (excepto crítico, que se filtra después en PHP)
+    // Estado
     if ($request->estado === 'activos') {
         $query->where('activo', true);
     } elseif ($request->estado === 'inactivos') {
         $query->where('activo', false);
+    } elseif ($request->estado === 'stock_critico') {
+        $query->whereRaw('COALESCE(existencias_utilizables.stock_utilizable, 0) <= productos.stock_critico');
     }
 
-    // Ordenamiento (excepto stock, que también va en PHP)
+    // Ordenamiento
     match ($request->orden) {
         'nombre_desc' => $query->orderBy('nombre', 'desc'),
         'reciente'    => $query->latest(),
+        'stock_asc'   => $query->orderBy('stock_fisico'),
+        'stock_desc'  => $query->orderByDesc('stock_fisico'),
         default       => $query->orderBy('nombre', 'asc'),
     };
 
     $productos = $query->paginate(20)->withQueryString();
-
-    // Filtros en PHP que dependen de métodos del modelo
-    $coleccion = $productos->getCollection();
-
-    if ($request->estado === 'critico') {
-        $coleccion = $coleccion->filter(fn($p) => $p->estaEnStockCritico())->values();
-    }
-
-    if ($request->orden === 'stock_asc') {
-        $coleccion = $coleccion->sortBy(fn($p) => $p->getStockTotal())->values();
-    } elseif ($request->orden === 'stock_desc') {
-        $coleccion = $coleccion->sortByDesc(fn($p) => $p->getStockTotal())->values();
-    }
-
-    $productos->setCollection($coleccion);
 
     // Stats
     $stats = [
         'total'     => Producto::count(),
         'activos'   => Producto::where('activo', true)->count(),
         'inactivos' => Producto::where('activo', false)->count(),
-        'critico'   => Producto::all()->filter(fn($p) => $p->estaEnStockCritico())->count(),
+        'critico'   => Producto::activos()
+            ->leftJoinSub($stockUtilizable, 'existencias_utilizables', function ($join) {
+                $join->on('productos.id', '=', 'existencias_utilizables.producto_id');
+            })
+            ->whereRaw('COALESCE(existencias_utilizables.stock_utilizable, 0) <= productos.stock_critico')
+            ->count(),
     ];
 
     $categorias = Categoria::orderBy('nombre')->get(['id', 'nombre']);
@@ -127,8 +129,9 @@ class ProductoController extends Controller
         $producto->load('categoria', 'laboratorio', 'stock.ubicacion', 'stock.lote', 'precios.listaPrecio');
 
         $stock = $producto->obtenerStock();
-        $estaBajo = $producto->estaBajoStock();
-        $estaCritico = $producto->estaEnStockCritico();
+        $stockUtilizable = $producto->getStockUtilizable();
+        $estaBajo = $stockUtilizable <= $producto->stock_minimo;
+        $estaCritico = $stockUtilizable <= $producto->stock_critico;
         $alertas = AlertaStock::where('producto_id', $producto->id)
             ->where('estado', 'activa')
             ->get();
@@ -136,6 +139,7 @@ class ProductoController extends Controller
         return view('productos.show', [
             'producto' => $producto,
             'stock' => $stock,
+            'stockUtilizable' => $stockUtilizable,
             'estaBajo' => $estaBajo,
             'estaCritico' => $estaCritico,
             'alertas' => $alertas,

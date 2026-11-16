@@ -8,6 +8,8 @@ use App\Models\Proveedor;
 use App\Models\Producto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
+
 
 class OrdenCompraController extends Controller
 {
@@ -123,5 +125,26 @@ class OrdenCompraController extends Controller
         $numero = $ultima ? $ultima->id + 1 : 1;
 
         return 'OC-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
+    }
+
+           public function pdf(OrdenCompra $orden)
+    {
+        $orden->load(['proveedor', 'usuario', 'detalles.producto']);
+        $pdf = Pdf::loadView('pdf.orden_compra', compact('orden'));
+        return $pdf->download("Orden_Compra_{$orden->numero_orden}.pdf");
+    }
+
+    public function guia(OrdenCompra $orden)
+    {
+        $orden->load(['proveedor', 'detalles.producto']);
+        $pdf = Pdf::loadView('pdf.guia_despacho', compact('orden'));
+        return $pdf->download("Guia_Despacho_{$orden->numero_orden}.pdf");
+    }
+
+    public function acta(OrdenCompra $orden)
+    {
+        $orden->load(['proveedor', 'detalles.producto']);
+        $pdf = Pdf::loadView('pdf.acta_recepcion', compact('orden'))->setPaper('a4', 'landscape');
+        return $pdf->download("Acta_Recepcion_{$orden->numero_orden}.pdf");
     }
 }

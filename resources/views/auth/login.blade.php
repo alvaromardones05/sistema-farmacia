@@ -1,205 +1,276 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-bs-theme="light">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
     <title>Iniciar sesión | Sistema de Farmacia</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
-        * {
-            box-sizing: border-box;
+        :root {
+            --bg-left: #ffffff;
+            --bg-right: #f4f7fb;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --input-bg: #ffffff;
+            --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            --shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        [data-bs-theme="dark"] {
+            --bg-left: #1a1b1e;
+            --bg-right: #1c1d21;
+            --primary: #2f81f7;
+            --primary-hover: #4a94fa;
+            --text-main: #ffffff;
+            --text-muted: #8b949e;
+            --border: #363740;
+            --input-bg: #232428;
+            --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            --shadow-focus: 0 0 0 3px rgba(47, 129, 247, 0.25);
         }
 
         body {
             margin: 0;
             min-height: 100vh;
-            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+            color: var(--text-main);
+            background-color: var(--bg-right);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Layout Split 50/50 */
+        .login-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 100vh;
+        }
+
+        /* =====================================================
+           LADO IZQUIERDO (BRANDING)
+        ===================================================== */
+        .panel-left {
+            background-color: var(--bg-left);
+            padding: 4rem 5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            border-right: 1px solid var(--border);
+        }
+
+        /* Círculo decorativo inferior izquierdo */
+        .decoration-circle {
+            position: absolute;
+            bottom: -150px;
+            left: -100px;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(191, 219, 254, 0.4) 0%, rgba(191, 219, 254, 0) 70%);
+            border-radius: 50%;
+            z-index: 0;
+        }
+
+        .content-left {
+            position: relative;
+            z-index: 1;
+            max-width: 450px;
+        }
+
+        /* Logo SVG Calcado */
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .brand-logo svg {
+            width: 60px;
+            height: 60px;
+        }
+
+        .brand-title {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.1;
+            margin: 0;
+            letter-spacing: -0.03em;
+        }
+
+        .brand-title .text-dark-blue {
             color: #10213f;
         }
 
-        .login-page {
-            min-height: 100vh;
+        [data-bs-theme="dark"] .brand-title .text-dark-blue {
+            color: #ffffff;
+        }
+
+        .brand-title .text-light-blue {
+            color: #2563eb;
+        }
+
+        .brand-subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 3rem;
+        }
+
+        /* Lista de Features */
+        .features-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background-color: #eff6ff;
+            color: #2563eb;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 40px 20px;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        [data-bs-theme="dark"] .feature-icon {
+            background-color: rgba(47, 129, 247, 0.1);
+            color: #2f81f7;
+        }
+
+        .feature-text h4 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin: 0 0 0.2rem 0;
+            color: var(--text-main);
+        }
+
+        .feature-text p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .footer-tagline {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 4rem;
+        }
+
+        /* =====================================================
+           LADO DERECHO (FORMULARIO)
+        ===================================================== */
+        .panel-right {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
             position: relative;
-            overflow: hidden;
-            background:
-                radial-gradient(circle at 15% 15%, rgba(191, 219, 254, .65), transparent 32%),
-                radial-gradient(circle at 82% 75%, rgba(219, 234, 254, .8), transparent 35%),
-                linear-gradient(135deg, #f8fbff 0%, #eef6ff 48%, #f8fbff 100%);
         }
 
-        /* Fondo difuminado estilo farmacia */
-        .login-page::before {
-            content: "";
+        /* Botón Modo Oscuro */
+        .btn-theme {
             position: absolute;
-            inset: 0;
-            opacity: .6;
-            background:
-                linear-gradient(90deg,
-                    transparent 0 8%,
-                    rgba(140, 190, 230, .14) 8% 9%,
-                    transparent 9% 23%,
-                    rgba(140, 190, 230, .12) 23% 24%,
-                    transparent 24% 78%,
-                    rgba(140, 190, 230, .12) 78% 79%,
-                    transparent 79% 100%
-                ),
-                repeating-linear-gradient(
-                    0deg,
-                    transparent 0 95px,
-                    rgba(108, 164, 211, .08) 95px 101px
-                );
-            filter: blur(2px);
-        }
-
-        .login-page::after {
-            content: "";
-            position: absolute;
-            width: 850px;
-            height: 850px;
+            top: 2rem;
+            right: 2rem;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
-            top: -560px;
-            right: -230px;
-            background: rgba(191, 219, 254, .32);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background-color: var(--bg-left);
+            z-index: 10;
         }
 
+        .btn-theme:hover {
+            color: var(--primary);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        /* Tarjeta */
         .login-card {
             width: 100%;
-            max-width: 610px;
-            position: relative;
-            z-index: 2;
-            background: rgba(255, 255, 255, .97);
-            border-radius: 22px;
-            overflow: hidden;
-            box-shadow:
-                0 28px 80px rgba(37, 99, 235, .13),
-                0 4px 20px rgba(15, 23, 42, .05);
-            border: 1px solid rgba(226, 232, 240, .8);
+            max-width: 480px;
+            background: var(--bg-left);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: var(--shadow-card);
+            padding: 3.5rem;
         }
 
-        .login-content {
-            padding: 52px 52px 30px;
+        .login-header h2 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
         }
 
-        .brand {
-            text-align: center;
-            margin-bottom: 30px;
+        .login-header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 2.5rem;
+            line-height: 1.5;
         }
 
-        .brand-logo {
-            width: 96px;
-            height: 96px;
-            margin: 0 auto 20px;
-            position: relative;
-        }
-
-        .cross {
-            position: absolute;
-            width: 92px;
-            height: 34px;
-            background: linear-gradient(135deg, #08a4e8, #1479e9);
-            border-radius: 9px;
-            top: 29px;
-            left: 2px;
-        }
-
-        .cross::before {
-            content: "";
-            position: absolute;
-            width: 34px;
-            height: 92px;
-            background: linear-gradient(135deg, #08a4e8, #1479e9);
-            border-radius: 9px;
-            top: -29px;
-            left: 29px;
-        }
-
-        .leaf {
-            position: absolute;
-            width: 56px;
-            height: 33px;
-            right: 0;
-            bottom: 8px;
-            background: linear-gradient(135deg, #16c8b4, #00a7c7);
-            border-radius: 100% 0 100% 0;
-            transform: rotate(-15deg);
-            box-shadow: 0 3px 8px rgba(16, 185, 170, .18);
-        }
-
-        .leaf::after {
-            content: "";
-            position: absolute;
-            width: 48px;
-            height: 2px;
-            background: rgba(255,255,255,.95);
-            left: 6px;
-            top: 17px;
-            transform: rotate(-25deg);
-            transform-origin: left;
-        }
-
-        .brand h1 {
-            margin: 0;
-            font-size: 2.05rem;
-            line-height: 1.15;
-            font-weight: 750;
-            letter-spacing: -.035em;
-            color: #10213f;
-        }
-
-        .brand h1 span {
-            color: #1477e8;
-        }
-
-        .brand p {
-            margin: 10px 0 0;
-            font-size: 1.05rem;
-            color: #7686a1;
-        }
-
-        .divider {
-            height: 1px;
-            background: #e7edf5;
-            margin: 28px 0 30px;
-        }
-
+        /* Inputs */
         .form-label {
-            font-weight: 650;
-            margin-bottom: 9px;
-            color: #13213d;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
         }
 
         .input-wrap {
             position: relative;
+            margin-bottom: 1.25rem;
         }
 
         .input-wrap .input-icon {
             position: absolute;
-            left: 17px;
+            left: 1.2rem;
             top: 50%;
             transform: translateY(-50%);
-            color: #7b8da9;
-            font-size: 1.15rem;
+            color: #94a3b8;
+            font-size: 1.1rem;
             pointer-events: none;
         }
 
         .form-control {
-            height: 58px;
-            border-radius: 10px;
-            border: 1px solid #cfd9e7;
-            padding-left: 52px;
-            padding-right: 48px;
+            height: 54px; /* Antes 50px */
+            padding-left: 3rem;
+            padding-right: 3rem;
             font-size: 1rem;
-            color: #17233d;
-            box-shadow: none;
-            transition: .18s ease;
+            font-family: inherit;
+            color: var(--text-main);
+            background-color: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: all 0.2s ease;
         }
 
         .form-control::placeholder {
@@ -207,303 +278,324 @@
         }
 
         .form-control:focus {
-            border-color: #2681ed;
-            box-shadow: 0 0 0 4px rgba(37, 128, 237, .10);
+            background-color: var(--bg-left);
+            border-color: var(--primary);
+            box-shadow: var(--shadow-focus);
+            color: var(--text-main);
         }
 
         .password-toggle {
             position: absolute;
-            right: 16px;
+            right: 1.2rem;
             top: 50%;
             transform: translateY(-50%);
-            border: 0;
+            border: none;
             background: transparent;
-            color: #7587a3;
-            font-size: 1.2rem;
-            padding: 4px;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 0;
+            font-size: 1.1rem;
+            transition: color 0.2s;
         }
 
-        .remember-row {
+        .password-toggle:hover {
+            color: var(--primary);
+        }
+
+        /* Extras (Recordarme / Olvidé) */
+        .form-extras {
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            gap: 18px;
-            margin: 21px 0 25px;
-        }
-
-        .form-check {
-            margin: 0;
+            align-items: center;
+            margin-bottom: 2rem;
+            margin-top: 1rem;
+            font-size: 0.85rem;
         }
 
         .form-check-input {
-            width: 20px;
-            height: 20px;
-            margin-top: .1em;
-            border: 1px solid #8da0bb;
+            cursor: pointer;
+            border-color: #cbd5e1;
+            width: 16px;
+            height: 16px;
+        }
+
+        .form-check-input:checked {
+            background-color: var(--primary);
+            border-color: var(--primary);
         }
 
         .form-check-label {
-            margin-left: 5px;
-            color: #13213d;
+            color: var(--text-muted);
+            cursor: pointer;
+            margin-left: 0.4rem;
         }
 
-        .forgot-link,
-        .back-link {
-            color: #0875ee;
+        .forgot-link {
+            color: var(--primary);
             text-decoration: none;
-            font-weight: 550;
+            font-weight: 600;
         }
 
-        .forgot-link:hover,
-        .back-link:hover {
+        .forgot-link:hover {
             text-decoration: underline;
         }
 
+        /* Botón */
         .btn-login {
             width: 100%;
-            height: 62px;
-            border: none;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #147cf3, #0769e8);
+            height: 54px;
+            background-color: var(--primary);
             color: white;
-            font-size: 1.16rem;
-            font-weight: 650;
-            box-shadow: 0 9px 24px rgba(7, 105, 232, .18);
-            transition: .18s ease;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
         }
 
         .btn-login:hover {
-            background: linear-gradient(135deg, #0c72e7, #055ecf);
+            background-color: var(--primary-hover);
             transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
         }
 
-        .btn-login:active {
-            transform: translateY(0);
+        .btn-login i {
+            transition: transform 0.2s;
         }
 
-        .back-area {
-            text-align: center;
-            border-top: 1px solid #e7edf5;
-            margin-top: 27px;
-            padding-top: 27px;
+        .btn-login:hover i {
+            transform: translateX(4px);
         }
 
-        .back-link i {
-            margin-right: 8px;
-        }
-
-        .login-footer {
-            background: #f8fafc;
-            border-top: 1px solid #edf1f6;
-            text-align: center;
-            color: #7586a0;
-            padding: 20px;
-            font-size: .92rem;
-        }
-
-        .login-footer i {
-            margin-right: 8px;
-        }
-
+        /* Alertas */
         .validation-error {
-            margin-top: 7px;
-            color: #dc3545;
-            font-size: .875rem;
+            color: #dc2626;
+            font-size: 0.8rem;
+            margin-top: 0.3rem;
         }
 
         .session-status {
-            margin-bottom: 20px;
-            padding: 12px 14px;
+            margin-bottom: 1.5rem;
+            padding: 0.75rem 1rem;
             border-radius: 8px;
-            background: #ecfdf5;
-            color: #047857;
-            font-size: .92rem;
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+            font-size: 0.9rem;
+            border: 1px solid rgba(16, 185, 129, 0.2);
         }
 
-        @media (max-width: 650px) {
-            .login-page {
-                padding: 20px 14px;
-            }
+        /* Responsive */
+        @media (max-width: 992px) {
+            .login-wrapper {
+                grid-template-columns: 1.2fr 1fr;
+                display: grid;
+                min-height: 100vh;
 
-            .login-content {
-                padding: 38px 25px 25px;
             }
-
-            .login-card {
-                border-radius: 17px;
-            }
-
-            .brand h1 {
-                font-size: 1.7rem;
-            }
-
-            .brand-logo {
-                transform: scale(.85);
-                margin-bottom: 12px;
-            }
-
-            .remember-row {
-                align-items: flex-start;
-                flex-direction: column;
-                gap: 14px;
-            }
-        }
-
-        @media (prefers-color-scheme: dark) {
-            body:not([data-theme="light"]) .login-page {
-                background:
-                    radial-gradient(circle at 15% 15%, rgba(30, 64, 175, .22), transparent 32%),
-                    radial-gradient(circle at 82% 75%, rgba(14, 116, 144, .14), transparent 35%),
-                    #0f172a;
+            .panel-left {
+                display: none; /* Ocultar el panel izquierdo en móviles */
             }
         }
     </style>
 </head>
-
 <body>
-<div class="login-page">
 
-    <div class="login-card">
+    <div class="login-wrapper">
 
-        <div class="login-content">
+        <!-- =====================================================
+             LADO IZQUIERDO: BRANDING
+        ====================================================== -->
+        <div class="panel-left">
+            <div class="decoration-circle"></div>
 
-            <div class="brand">
-
-                <div class="brand-logo" aria-hidden="true">
-                    <div class="cross"></div>
-                    <div class="leaf"></div>
+            <div class="content-left">
+                <!-- Logo SVG Recreado -->
+                <div class="brand-logo">
+                    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M42 10H58V42H90V58H58V90H42V58H10V42H42V10Z" fill="url(#paint0_linear)"/>
+                        <path d="M50 30C61.0457 30 70 38.9543 70 50C70 61.0457 61.0457 70 50 70C38.9543 70 30 61.0457 30 50C30 38.9543 38.9543 30 50 30Z" fill="white" fill-opacity="0.2"/>
+                        <path d="M50 35C58.2843 35 65 41.7157 65 50C65 58.2843 58.2843 65 50 65C41.7157 65 35 58.2843 35 50C35 41.7157 41.7157 35 50 35Z" fill="white"/>
+                        <path d="M50 35V65" stroke="#2563eb" stroke-width="6" stroke-linecap="round"/>
+                        <defs>
+                            <linearGradient id="paint0_linear" x1="10" y1="10" x2="90" y2="90" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#2dd4bf"/>
+                                <stop offset="1" stop-color="#2563eb"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <h1 class="brand-title">
+                        <span class="text-dark-blue">Sistema de Gestión</span><br>
+                        <span class="text-light-blue">de Farmacia</span>
+                    </h1>
                 </div>
 
-                <h1>
-                    Sistema de <span>Farmacia</span>
-                </h1>
+                <p class="brand-subtitle">
+                    Control de stock, recetas y ventas para una atención segura y eficiente.
+                </p>
 
-                <p>Inicia sesión para continuar</p>
+                <div class="features-list">
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="bi bi-box-seam"></i></div>
+                        <div class="feature-text">
+                            <h4>Gestión de productos</h4>
+                            <p>Control de stock y lotes.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="bi bi-file-earmark-medical"></i></div>
+                        <div class="feature-text">
+                            <h4>Recetas y convenios</h4>
+                            <p>Cumplimiento normativo chileno.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon"><i class="bi bi-bar-chart-line"></i></div>
+                        <div class="feature-text">
+                            <h4>Reportes y trazabilidad</h4>
+                            <p>Información en tiempo real.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="footer-tagline">
+                    Tu farmacia, más simple.
+                </div>
+            </div>
+        </div>
+
+        <!-- =====================================================
+             LADO DERECHO: FORMULARIO
+        ====================================================== -->
+        <div class="panel-right">
+
+            <button class="btn-theme" id="themeToggle" aria-label="Cambiar tema">
+                <i class="bi bi-moon" id="themeIcon"></i>
+            </button>
+
+            <div class="login-card">
+                <div class="login-header">
+                    <h2>Iniciar sesión</h2>
+                    <p>Ingresa tus credenciales para acceder al sistema de gestión de farmacia.</p>
+                </div>
+
+                @if (session('status'))
+                    <div class="session-status">
+                        {{ session('status') }}
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('login') }}">
+                    @csrf
+
+                    {{-- Correo / Usuario --}}
+                    <div>
+                        <label for="email" class="form-label">Correo</label>
+                        <div class="input-wrap">
+                            <i class="bi bi-person input-icon"></i>
+                            <input
+                                id="email"
+                                type="text" {{-- Permite RUT o correo --}}
+                                name="email"
+                                value="{{ old('email') }}"
+                                class="form-control @error('email') is-invalid @enderror"
+                                placeholder="Correo"
+                                autocomplete="username"
+                                required
+                                autofocus
+                            >
+                        </div>
+                        @error('email')
+                            <div class="validation-error">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    {{-- Contraseña --}}
+                    <div>
+                        <label for="password" class="form-label">Contraseña</label>
+                        <div class="input-wrap">
+                            <i class="bi bi-lock input-icon"></i>
+                            <input
+                                id="password"
+                                type="password"
+                                name="password"
+                                class="form-control @error('password') is-invalid @enderror"
+                                placeholder="Contraseña"
+                                autocomplete="current-password"
+                                required
+                            >
+                            <button type="button" class="password-toggle" id="togglePassword" aria-label="Mostrar u ocultar contraseña">
+                                <i class="bi bi-eye-slash" id="passwordIcon"></i>
+                            </button>
+                        </div>
+                        @error('password')
+                            <div class="validation-error">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    {{-- Extras --}}
+                    <div class="form-extras">
+                        <div class="form-check m-0 d-flex align-items-center">
+                            <input class="form-check-input m-0" type="checkbox" name="remember" id="remember">
+                            <label class="form-check-label" for="remember">Mantener sesión iniciada</label>
+                        </div>
+                        @if (Route::has('password.request'))
+                            <a href="{{ route('password.request') }}" class="forgot-link">
+                                ¿Olvidaste tu contraseña?
+                            </a>
+                        @endif
+                    </div>
+
+                    {{-- Botón --}}
+                    <button type="submit" class="btn-login">
+                        Iniciar sesión <i class="bi bi-arrow-right"></i>
+                    </button>
+                </form>
             </div>
 
-            <div class="divider"></div>
-
-            @if (session('status'))
-                <div class="session-status">
-                    {{ session('status') }}
-                </div>
-            @endif
-
-            <form method="POST" action="{{ route('login') }}">
-                @csrf
-
-                {{-- Correo --}}
-                <div class="mb-4">
-                    <label for="email" class="form-label">
-                        Correo electrónico
-                    </label>
-
-                    <div class="input-wrap">
-                        <i class="bi bi-envelope input-icon"></i>
-
-                        <input
-                            id="email"
-                            type="email"
-                            name="email"
-                            value="{{ old('email') }}"
-                            class="form-control @error('email') is-invalid @enderror"
-                            placeholder="tu@correo.com"
-                            autocomplete="username"
-                            required
-                            autofocus
-                        >
-                    </div>
-
-                    @error('email')
-                        <div class="validation-error">
-                            {{ $message }}
-                        </div>
-                    @enderror
-                </div>
-
-                {{-- Contraseña --}}
-                <div>
-                    <label for="password" class="form-label">
-                        Contraseña
-                    </label>
-
-                    <div class="input-wrap">
-                        <i class="bi bi-lock input-icon"></i>
-
-                        <input
-                            id="password"
-                            type="password"
-                            name="password"
-                            class="form-control @error('password') is-invalid @enderror"
-                            placeholder="••••••••"
-                            autocomplete="current-password"
-                            required
-                        >
-
-                        <button
-                            type="button"
-                            class="password-toggle"
-                            id="togglePassword"
-                            aria-label="Mostrar u ocultar contraseña"
-                        >
-                            <i class="bi bi-eye-slash" id="passwordIcon"></i>
-                        </button>
-                    </div>
-
-                    @error('password')
-                        <div class="validation-error">
-                            {{ $message }}
-                        </div>
-                    @enderror
-                </div>
-
-                {{-- Recordarme / contraseña --}}
-                <div class="remember-row">
-
-                    <div class="form-check">
-                        <input
-                            class="form-check-input"
-                            type="checkbox"
-                            name="remember"
-                            id="remember"
-                        >
-
-                        <label class="form-check-label" for="remember">
-                            Recordarme
-                        </label>
-                    </div>
-                </div>
-
-                {{-- Login --}}
-                <button type="submit" class="btn-login">
-                    <i class="bi bi-box-arrow-in-right me-2"></i>
-                    Iniciar sesión
-                </button>
-            </form>
         </div>
-
-        <div class="login-footer">
-            <i class="bi bi-shield-check"></i>
-            Acceso para personal autorizado
-        </div>
-
     </div>
 
-</div>
+    <script>
+        // Toggle Password
+        const password = document.getElementById('password');
+        const toggle = document.getElementById('togglePassword');
+        const icon = document.getElementById('passwordIcon');
 
-<script>
-    const password = document.getElementById('password');
-    const toggle = document.getElementById('togglePassword');
-    const icon = document.getElementById('passwordIcon');
+        toggle.addEventListener('click', () => {
+            const mostrando = password.type === 'text';
+            password.type = mostrando ? 'password' : 'text';
+            icon.classList.toggle('bi-eye', mostrando);
+            icon.classList.toggle('bi-eye-slash', !mostrando);
+        });
 
-    toggle.addEventListener('click', () => {
-        const mostrando = password.type === 'text';
+        // Toggle Tema
+        const btnTheme = document.getElementById('themeToggle');
+        const iconTheme = document.getElementById('themeIcon');
+        const htmlEl = document.documentElement;
 
-        password.type = mostrando ? 'password' : 'text';
+        // Script Anti-Flash inicial
+        (function() {
+            var storedTheme = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            htmlEl.setAttribute('data-bs-theme', storedTheme || (prefersDark ? 'dark' : 'light'));
+        })();
 
-        icon.classList.toggle('bi-eye', mostrando);
-        icon.classList.toggle('bi-eye-slash', !mostrando);
-    });
-</script>
+        if (htmlEl.getAttribute('data-bs-theme') === 'dark') {
+            iconTheme.className = 'bi bi-sun';
+        }
+
+        btnTheme.addEventListener('click', () => {
+            const next = htmlEl.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+            htmlEl.setAttribute('data-bs-theme', next);
+            localStorage.setItem('theme', next);
+            iconTheme.className = next === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+        });
+    </script>
 </body>
 </html>

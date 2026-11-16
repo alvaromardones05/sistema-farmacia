@@ -8,26 +8,33 @@
 <div class="container-fluid px-0 inventario-modulo">
 
     {{-- ================= ENCABEZADO ================= --}}
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
-        <div>
-            <h1 class="h3 mb-1">Inventario</h1>
-            <p class="text-muted mb-0">Control y gestión del stock de la farmacia</p>
-        </div>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Inventario</h1>
+        <p class="text-muted mb-0">Control y gestión del stock de la farmacia</p>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        @if (auth()->user()->can('ver_stock') || auth()->user()->can('gestionar_stock'))
+            <a href="{{ route('inventario.canjes.index') }}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-repeat me-1"></i>
+                Canjes
+            </a>
+        @endif
 
         @can('gestionar_stock')
-            <div class="d-flex flex-wrap gap-2">
-                <a href="{{ route('inventario.transferir.form') }}" class="btn btn-primary">
-                    <i class="bi bi-arrow-left-right me-1"></i>
-                    Nuevo traslado
-                </a>
+            <a href="{{ route('inventario.transferir.form') }}" class="btn btn-primary">
+                <i class="bi bi-arrow-left-right me-1"></i>
+                Nuevo traslado
+            </a>
 
-                <a href="{{ route('inventario.ajustar.form') }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-sliders me-1"></i>
-                    Nuevo ajuste
-                </a>
-            </div>
+            <a href="{{ route('inventario.ajustar.form') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-sliders me-1"></i>
+                Nuevo ajuste
+            </a>
         @endcan
     </div>
+</div>
 
     {{-- ================= MENSAJES ================= --}}
     @if ($errors->any())
@@ -104,7 +111,7 @@
                     </div>
 
                     <div>
-                        <div class="etiqueta">Stock total</div>
+                        <div class="etiqueta">Stock en ubicación</div>
                         <div class="valor text-primary">
                             {{ $stockTotalUnidades }}
                         </div>
@@ -403,32 +410,35 @@
 
                                 @can('gestionar_stock')
                                     @if(in_array($ubicacionActual->tipo, ['bodega', 'frigorifica', 'vitrina', 'vitrina_refrigerada'], true))
+                                    
                                     <button type="button"
-                                            class="btn btn-sm btn-outline-success btn-trasladar"
-
+                                            class="btn btn-sm btn-outline-success"
+                                            onclick="openTraslado(this)"
                                             data-producto-id="{{ $s->producto_id }}"
                                             data-producto-nombre="{{ $s->producto?->nombre }}"
                                             data-producto-codigo="{{ $s->producto?->codigo_interno }}"
                                             data-producto-detalle="{{ $s->producto?->concentracion }}"
                                             data-producto-condicion="{{ $s->producto?->condicion_almacenamiento }}"
+                                            data-producto-controlado="{{ $s->producto?->es_controlado ? '1' : '0' }}"
                                             data-ubicacion-id="{{ $ubicacionActual->id }}"
                                             data-ubicacion-tipo="{{ $ubicacionActual->tipo }}"
                                             data-ubicacion-nombre="{{ $ubicacionActual->nombre }}">
-
-                                        <i class="bi bi-arrow-left-right me-1"></i>
-                                        Trasladar
-
+                                        <i class="bi bi-arrow-left-right me-1"></i> Trasladar
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-warning btn-no-apto"
+
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-warning"
+                                            onclick="openNoApto(this)"
                                             data-producto-id="{{ $s->producto_id }}"
                                             data-producto-nombre="{{ $s->producto?->nombre }}"
+                                            data-producto-codigo="{{ $s->producto?->codigo_interno }}"
                                             data-ubicacion-id="{{ $ubicacionActual->id }}"
                                             data-ubicacion-nombre="{{ $ubicacionActual->nombre }}">
                                         Marcar como no apto
                                     </button>
+
                                     @endif
                                 @endcan
-
                             </td>
 
                         </tr>

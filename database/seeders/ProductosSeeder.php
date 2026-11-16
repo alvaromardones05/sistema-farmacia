@@ -26,6 +26,7 @@ class ProductosSeeder extends Seeder
                 'unidad_medida' => 'comprimido',
                 'tipo_receta' => 'simple',
                 'es_controlado' => false,
+                'condicion_almacenamiento' => 'ambiente',
                 'stock_minimo' => 20,
                 'stock_critico' => 8,
                 'activo' => true,
@@ -42,6 +43,7 @@ class ProductosSeeder extends Seeder
                 'tipo_receta' => 'retenida',
                 'es_controlado' => true,
                 'registro_isp' => 'ISP-2024-003',
+                'condicion_almacenamiento' => 'ambiente',
                 'stock_minimo' => 5,
                 'stock_critico' => 2,
                 'activo' => true,
@@ -57,6 +59,7 @@ class ProductosSeeder extends Seeder
                 'unidad_medida' => 'sobre',
                 'tipo_receta' => 'ninguna',
                 'es_controlado' => false,
+                'condicion_almacenamiento' => 'ambiente',
                 'stock_minimo' => 10,
                 'stock_critico' => 4,
                 'activo' => true,
@@ -72,6 +75,7 @@ class ProductosSeeder extends Seeder
                 'unidad_medida' => 'frasco',
                 'tipo_receta' => 'ninguna',
                 'es_controlado' => false,
+                'condicion_almacenamiento' => 'ambiente',
                 'stock_minimo' => 10,
                 'stock_critico' => 4,
                 'activo' => true,
@@ -87,6 +91,7 @@ class ProductosSeeder extends Seeder
                 'unidad_medida' => 'frasco',
                 'tipo_receta' => 'simple',
                 'es_controlado' => false,
+                'condicion_almacenamiento' => 'ambiente',
                 'stock_minimo' => 10,
                 'stock_critico' => 4,
                 'activo' => true,
@@ -102,6 +107,7 @@ class ProductosSeeder extends Seeder
                 'unidad_medida' => 'tubo',
                 'tipo_receta' => 'ninguna',
                 'es_controlado' => false,
+                'condicion_almacenamiento' => 'ambiente',
                 'stock_minimo' => 10,
                 'stock_critico' => 4,
                 'activo' => true,
@@ -117,6 +123,7 @@ class ProductosSeeder extends Seeder
                 'unidad_medida' => 'tubo',
                 'tipo_receta' => 'ninguna',
                 'es_controlado' => false,
+                'condicion_almacenamiento' => 'ambiente',
                 'stock_minimo' => 10,
                 'stock_critico' => 4,
                 'activo' => true,
@@ -132,6 +139,7 @@ class ProductosSeeder extends Seeder
                 'unidad_medida' => 'tubo',
                 'tipo_receta' => 'simple',
                 'es_controlado' => false,
+                'condicion_almacenamiento' => 'ambiente',
                 'stock_minimo' => 8,
                 'stock_critico' => 3,
                 'activo' => true,
@@ -147,6 +155,7 @@ class ProductosSeeder extends Seeder
                 'unidad_medida' => 'frasco',
                 'tipo_receta' => 'simple',
                 'es_controlado' => false,
+                'condicion_almacenamiento' => 'refrigerado',
                 'stock_minimo' => 5,
                 'stock_critico' => 2,
                 'activo' => true,
@@ -162,11 +171,28 @@ class ProductosSeeder extends Seeder
                 'unidad_medida' => 'frasco',
                 'tipo_receta' => 'simple',
                 'es_controlado' => false,
+                'condicion_almacenamiento' => 'ambiente',
                 'stock_minimo' => 10,
                 'stock_critico' => 4,
                 'activo' => true,
             ],
         ];
+
+        $productosSinCondicion = collect($productos)
+            ->filter(fn ($producto) => !in_array(
+                $producto['condicion_almacenamiento'] ?? null,
+                ['ambiente', 'refrigerado'],
+                true
+            ))
+            ->pluck('codigo_interno')
+            ->all();
+
+        if ($productosSinCondicion) {
+            throw new \LogicException(
+                'Confirma la condición de almacenamiento (ambiente o refrigerado) para estos productos antes de ejecutar ProductosSeeder: '
+                . implode(', ', $productosSinCondicion)
+            );
+        }
 
         foreach ($productos as $producto) {
             $producto['categoria_id'] = $categorias->random()->id;

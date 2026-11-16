@@ -145,7 +145,7 @@ class InventarioController extends Controller
             ->get()
             ->filter(fn($l) =>
                 (int) $l->stock_total > 0 &&
-                $l->fecha_vencimiento->between(now(), now()->addDays($dias))
+                $l->fecha_vencimiento->between(today(), today()->addDays($dias))
             )
             ->count();
     }
@@ -158,7 +158,7 @@ class InventarioController extends Controller
             ->get()
             ->filter(fn($l) =>
                 (int) $l->stock_total > 0 &&
-                $l->fecha_vencimiento->isPast()
+                $l->fecha_vencimiento->lt(today())
             )
             ->count();
     }
@@ -546,16 +546,36 @@ class InventarioController extends Controller
         // 60 días por defecto si no se especifica nada.
         $dias = (int) $request->get('dias', 60);
 
-        $lotes = Lote::with('producto')
-            ->withSum('stock as stock_total', 'cantidad')
+        $lotes = Lote::with(['producto', 'stock.ubicacion'])
+            ->whereHas('stock', fn($query) => $query
+                ->enUbicacionesComerciales()
+                ->where('cantidad', '>', 0))
+            ->withSum(['stock as stock_comercial' => fn($query) => $query->enUbicacionesComerciales()], 'cantidad')
             // Orden FEFO real: el que vence primero aparece primero.
             ->orderBy('fecha_vencimiento')
             ->get()
             ->filter(function ($lote) use ($dias) {
-                // Solo lotes con stock real, y dentro de la ventana elegida
-                // (incluye vencidos: fecha_vencimiento <= hoy también cae aquí).
-                return (int) $lote->stock_total > 0
-                    && $lote->fecha_vencimiento->lte(now()->addDays($dias));
+                // La opción cero muestra solo vencidos; ventanas mayores incluyen atrasados.
+                if ($dias === 0) {
+                    return (int) $lote->stock_comercial > 0
+                        && $lote->fecha_vencimiento->lt(today());
+                }
+
+                return (int) $lote->stock_comercial > 0
+                    && $lote->fecha_vencimiento->lte(today()->addDays($dias));
+            })
+            ->each(function ($lote) {
+                $tiposCompatibles = match ($lote->producto?->condicion_almacenamiento) {
+                    'ambiente' => ['bodega', 'vitrina'],
+                    'refrigerado' => ['frigorifica', 'vitrina_refrigerada'],
+                    default => [],
+                };
+
+                $lote->stock_para_canje = $lote->stock
+                    ->filter(fn($stock) => $stock->cantidad > 0
+                        && $stock->ubicacion?->activo
+                        && in_array($stock->ubicacion->tipo, $tiposCompatibles, true))
+                    ->sum('cantidad');
             });
 
         return view('inventario.proximos-vencer', compact('lotes', 'dias'));
@@ -565,33 +585,40 @@ class InventarioController extends Controller
 
     public function alertas()
     {
-        // Productos con stock bajo o crítico (calculado en vivo)
+        $stockUtilizable = Producto::queryStockUtilizablePorProducto();
+
         $productos = Producto::activos()
-            ->withSum('stock as stock_total', 'cantidad')
+            ->leftJoinSub($stockUtilizable, 'existencias_utilizables', function ($join) {
+                $join->on('productos.id', '=', 'existencias_utilizables.producto_id');
+            })
+            ->select('productos.*')
+            ->selectRaw('COALESCE(existencias_utilizables.stock_utilizable, 0) as stock_utilizable')
             ->get();
 
         $stockCritico = $productos->filter(
-            fn($p) => (int) $p->stock_total <= $p->stock_critico
+            fn($p) => (int) $p->stock_utilizable <= $p->stock_critico
         );
 
         $stockBajo = $productos->filter(
-            fn($p) => (int) $p->stock_total > $p->stock_critico
-                && (int) $p->stock_total <= $p->stock_minimo
+            fn($p) => (int) $p->stock_utilizable > $p->stock_critico
+                && (int) $p->stock_utilizable <= $p->stock_minimo
         );
 
-        // Lotes activos con stock real > 0 (calculado en vivo)
+        // Las alertas comerciales excluyen cantidades en cuarentena y canje.
         $lotesConStock = Lote::where('estado', 'activo')
             ->with('producto')
-            ->withSum('stock as stock_total', 'cantidad')
-            ->get()
-            ->filter(fn($l) => (int) $l->stock_total > 0);
+            ->whereHas('stock', fn($query) => $query
+                ->enUbicacionesComerciales()
+                ->where('cantidad', '>', 0))
+            ->withSum(['stock as stock_comercial' => fn($query) => $query->enUbicacionesComerciales()], 'cantidad')
+            ->get();
 
         $porVencer = $lotesConStock->filter(
-            fn($l) => $l->fecha_vencimiento->between(now(), now()->addDays(30))
+            fn($l) => $l->fecha_vencimiento->between(today(), today()->addDays(30))
         );
 
         $vencidos = $lotesConStock->filter(
-            fn($l) => $l->fecha_vencimiento->isPast()
+            fn($l) => $l->fecha_vencimiento->lt(today())
         );
 
         return view('inventario.alertas', compact(

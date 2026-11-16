@@ -23,6 +23,9 @@ class Venta extends Model
         'descuento',
         'impuesto',
         'total',
+        'tipo_documento',
+        'rut_empresa',
+        'razon_social',
         'estado',
         'observaciones',
     ];

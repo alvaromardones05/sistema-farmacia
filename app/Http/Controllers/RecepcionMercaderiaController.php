@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\OrdenCompraDetalle;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class RecepcionMercaderiaController extends Controller
 {
@@ -81,7 +82,7 @@ class RecepcionMercaderiaController extends Controller
 
         'detalles.*.lotes.*.fecha_vencimiento' =>
             'nullable|date|after_or_equal:today',
-
+ 
         'detalles.*.lotes.*.observacion' =>
             'nullable|string|max:1000',
     ]);
@@ -831,4 +832,16 @@ class RecepcionMercaderiaController extends Controller
         ]);
 
         return redirect() ->route('compras.recepciones.show', $recepcion) ->with('success', 'Recepción rechazada correctamente.');}
+
+
+        public function guia(RecepcionMercaderia $recepcion)
+        {
+            $recepcion->load(['ordenCompra.proveedor', 'detalles.producto', 'detalles.ordenCompraDetalle']);
+            
+            $pdf = Pdf::loadView('pdf.guia_despacho', compact('recepcion'));
+            
+            return $pdf->download("Guia_Despacho_{$recepcion->ordenCompra->numero_orden}.pdf");
+        }
+
+        
 }

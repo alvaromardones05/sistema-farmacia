@@ -87,8 +87,9 @@
             <div class="col-md-4">
                 <label for="condicion_almacenamiento" class="form-label">Condición de almacenamiento *</label>
                 <select id="condicion_almacenamiento" name="condicion_almacenamiento" class="form-select @error('condicion_almacenamiento') is-invalid @enderror" required>
+                    <option value="" @selected(old('condicion_almacenamiento', $producto?->condicion_almacenamiento) === '')>Selecciona una condición</option>
                     @foreach (['ambiente' => 'Ambiente', 'refrigerado' => 'Refrigerado'] as $valor => $etiqueta)
-                        <option value="{{ $valor }}" @selected(old('condicion_almacenamiento', $producto?->condicion_almacenamiento ?? 'ambiente') === $valor)>{{ $etiqueta }}</option>
+                        <option value="{{ $valor }}" @selected(old('condicion_almacenamiento', $producto?->condicion_almacenamiento) === $valor)>{{ $etiqueta }}</option>
                     @endforeach
                 </select>
                 @error('condicion_almacenamiento')<div class="invalid-feedback">{{ $message }}</div>@enderror

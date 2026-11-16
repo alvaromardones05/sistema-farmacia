@@ -167,7 +167,13 @@ class VentaController extends Controller
                     'impuesto' => 0,
                     'total' => 0,
                     'estado' => 'pendiente',
+                    'tipo_documento' => $validated['tipo_documento'],
+                    'rut_empresa' => $validated['tipo_documento'] === 'factura' ? $validated['rut_empresa'] : null,
+                    'razon_social' => $validated['tipo_documento'] === 'factura' ? $validated['razon_social'] : null,
+
                 ]);
+
+
 
                 $resultado = $this->procesarDetalles(
                     $venta,
@@ -337,20 +343,89 @@ class VentaController extends Controller
     }
 
 
-    // ===================== REPORTE DIARIO =====================
+    // ===================== REPORTES =====================
 
-    public function reporteDiario()
+    public function reportes(Request $request): \Illuminate\Contracts\View\View
     {
-        $ventas = Venta::whereDate('fecha_venta', today())
-            ->completadas()
-            ->with('paciente', 'usuario', 'detalles.producto')
+        // Cambiamos get() por input() y agregamos el tipo de retorno
+        $periodo = $request->input('periodo', 'mes');
+        $inicio = today();
+        $fin = today();
+
+        if ($periodo === 'semana') {
+            $inicio = today()->startOfWeek();
+            $fin = today()->endOfWeek();
+        } elseif ($periodo === 'mes') {
+            $inicio = today()->startOfMonth();
+            $fin = today()->endOfMonth();
+        } elseif ($periodo === 'dia') {
+            // inicio y fin ya son hoy
+        }
+
+        // Reemplazamos completadas() por el where directo
+        $ventas = Venta::where('estado', 'completada')
+            ->whereBetween('fecha_venta', [$inicio->copy()->startOfDay(), $fin->copy()->endOfDay()])
+            ->with(['paciente', 'usuario', 'pagos'])
+            ->latest('fecha_venta')
             ->get();
 
-        return view('ventas.reporte-diario', [
-            'ventas' => $ventas,
-            'totalVentas' => $ventas->sum('total'),
-            'cantidadVentas' => $ventas->count(),
-        ]);
+        $totalVendido = $ventas->sum('total');
+        $cantidadVentas = $ventas->count();
+        $ticketPromedio = $cantidadVentas > 0 ? $totalVendido / $cantidadVentas : 0;
+
+        return view('ventas.reportes', compact(
+            'ventas',
+            'periodo',
+            'inicio',
+            'fin',
+            'totalVendido',
+            'cantidadVentas',
+            'ticketPromedio'
+        ));
+    }
+
+    public function exportarReporte(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $periodo = $request->input('periodo', 'mes');
+        $inicio = $periodo === 'semana' ? today()->startOfWeek() : ($periodo === 'mes' ? today()->startOfMonth() : today());
+        $fin = $periodo === 'semana' ? today()->endOfWeek() : ($periodo === 'mes' ? today()->endOfMonth() : today());
+
+        $ventas = Venta::where('estado', 'completada')
+            ->whereBetween('fecha_venta', [$inicio->copy()->startOfDay(), $fin->copy()->endOfDay()])
+            ->with(['paciente', 'pagos'])
+            ->latest('fecha_venta')
+            ->get();
+
+        $filename = "reporte_ventas_{$periodo}_" . now()->format('Ymd_His') . ".csv";
+
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $columns = ['N° Venta', 'Fecha', 'Cliente', 'Documento', 'Método Pago', 'Total'];
+
+        $callback = function() use($ventas, $columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+
+            foreach ($ventas as $venta) {
+                fputcsv($file, [
+                    $venta->numero_venta,
+                    $venta->fecha_venta->format('d/m/Y H:i'),
+                    $venta->paciente ? $venta->paciente->nombreCompleto() : ($venta->razon_social ?? 'Consumidor Final'),
+                    $venta->tipo_documento === 'factura' ? 'Factura' : 'Boleta',
+                    $venta->pagos->first()?->metodo_pago ?? 'N/A',
+                    number_format($venta->total, 0, ',', '.')
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
 
@@ -383,6 +458,10 @@ class VentaController extends Controller
                 'array',
                 'min:1',
             ],
+
+            'tipo_documento' => 'required|in:boleta,factura',
+            'rut_empresa' => 'required_if:tipo_documento,factura|nullable|string|max:20',
+            'razon_social' => 'required_if:tipo_documento,factura|nullable|string|max:255',
 
             'detalles.*.producto_id' => [
                 'required',

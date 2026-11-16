@@ -86,7 +86,8 @@
                         <th>Categoría</th>
                         <th>Laboratorio</th>
                         <th>Precio</th>
-                        <th class="text-center">Stock</th>
+                        <th class="text-center">Stock físico</th>
+                        <th class="text-center">Stock utilizable</th>
                         <th class="text-center">Estado</th>
                         <th class="text-end">Acciones</th>
                     </tr>
@@ -114,9 +115,11 @@
                             ${{ number_format($producto->precio_base, 0, ',', '.') }}
                         </td>
                         <td class="text-center">
-                            @php $stock = $producto->getStockTotal(); @endphp
-                            <span class="badge text-bg-{{ $producto->estaEnStockCritico() ? 'danger' : 'success' }}">
-                                {{ $stock }}
+                            {{ (int) $producto->stock_fisico }}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge text-bg-{{ (int) $producto->stock_utilizable <= $producto->stock_critico ? 'danger' : 'success' }}">
+                                {{ (int) $producto->stock_utilizable }}
                             </span>
                         </td>
                         <td class="text-center">
@@ -144,7 +147,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-5">
+                        <td colspan="9" class="text-center text-muted py-5">
                             <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                             No se encontraron productos.
                         </td>

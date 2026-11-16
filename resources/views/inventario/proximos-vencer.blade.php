@@ -17,7 +17,12 @@
                 @endif
             </h1>
         </div>
-        <a href="{{ route('inventario.index') }}" class="btn btn-outline-secondary">Volver</a>
+        <div class="d-flex gap-2">
+            @if (auth()->user()->can('ver_stock') || auth()->user()->can('gestionar_stock'))
+                <a href="{{ route('inventario.canjes.index') }}" class="btn btn-outline-primary">Seguimiento de canjes</a>
+            @endif
+            <a href="{{ auth()->user()->can('ver_stock') ? route('inventario.index') : route('inventario.canjes.index') }}" class="btn btn-outline-secondary">Volver</a>
+        </div>
     </div>
 
     {{-- Filtro de período --}}
@@ -41,14 +46,17 @@
                         <th>Lote</th>
                         <th>Vencimiento</th>
                         <th>Días restantes</th>
-                        <th>Disponible</th>
+                        <th>Stock comercial</th>
                         <th>Urgencia</th>
+                        @can('gestionar_stock')
+                            <th>Canje</th>
+                        @endcan
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($lotes as $lote)
                         @php
-                            $diasRestantes = (int) now()->diffInDays($lote->fecha_vencimiento, false);
+                            $diasRestantes = (int) today()->diffInDays($lote->fecha_vencimiento, false);
                             $badge = $diasRestantes < 0 ? 'dark' : ($diasRestantes <= 7 ? 'danger' : ($diasRestantes <= 30 ? 'warning' : 'info'));
                             $texto = $diasRestantes < 0 ? 'Vencido' : ($diasRestantes <= 7 ? 'Urgente' : ($diasRestantes <= 30 ? 'Próximo' : 'A tiempo'));
                         @endphp
@@ -57,12 +65,24 @@
                             <td>{{ $lote->numero_lote }}</td>
                             <td>{{ $lote->fecha_vencimiento->format('d/m/Y') }}</td>
                             <td>{{ $diasRestantes < 0 ? 'Vencido hace ' . abs($diasRestantes) . ' días' : $diasRestantes . ' días' }}</td>
-                            <td>{{ (int) $lote->stock_total }}</td>
+                            <td>{{ (int) $lote->stock_comercial }}</td>
                             <td><span class="badge text-bg-{{ $badge }}">{{ $texto }}</span></td>
+                            @can('gestionar_stock')
+                                <td>
+                                    @if ($lote->stock_para_canje > 0 && $lote->estado === 'activo' && $lote->producto?->activo && $lote->fecha_vencimiento->gte(today()) && in_array($dias, [15, 30, 60, 90], true))
+                                        <a href="{{ route('inventario.canjes.create', ['lote' => $lote->id, 'dias' => $dias]) }}" class="btn btn-sm btn-outline-primary">
+                                            Solicitar canje
+                                        </a>
+                                        <div class="small text-muted">{{ $lote->stock_para_canje }} un. compatibles</div>
+                                    @else
+                                        <span class="text-muted small">No disponible</span>
+                                    @endif
+                                </td>
+                            @endcan
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">
+                            <td colspan="{{ auth()->user()->can('gestionar_stock') ? 7 : 6 }}" class="text-center text-muted py-4">
                                 @if ($dias === 0)
                                     No hay lotes vencidos con stock.
                                 @else

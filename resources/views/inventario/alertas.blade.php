@@ -24,7 +24,7 @@
                 <thead>
                     <tr>
                         <th>Producto</th>
-                        <th>Stock actual</th>
+                        <th>Stock utilizable</th>
                         <th>Umbral crítico</th>
                     </tr>
                 </thead>
@@ -32,7 +32,7 @@
                     @forelse ($stockCritico as $producto)
                         <tr>
                             <td>{{ $producto->nombre }} ({{ $producto->codigo_interno }})</td>
-                            <td><span class="badge text-bg-danger">{{ (int) $producto->stock_total }}</span></td>
+                            <td><span class="badge text-bg-danger">{{ (int) $producto->stock_utilizable }}</span></td>
                             <td>{{ $producto->stock_critico }}</td>
                         </tr>
                     @empty
@@ -53,7 +53,7 @@
                 <thead>
                     <tr>
                         <th>Producto</th>
-                        <th>Stock actual</th>
+                        <th>Stock utilizable</th>
                         <th>Umbral mínimo</th>
                     </tr>
                 </thead>
@@ -61,7 +61,7 @@
                     @forelse ($stockBajo as $producto)
                         <tr>
                             <td>{{ $producto->nombre }} ({{ $producto->codigo_interno }})</td>
-                            <td><span class="badge text-bg-warning">{{ (int) $producto->stock_total }}</span></td>
+                            <td><span class="badge text-bg-warning">{{ (int) $producto->stock_utilizable }}</span></td>
                             <td>{{ $producto->stock_minimo }}</td>
                         </tr>
                     @empty
@@ -84,7 +84,7 @@
                         <th>Producto</th>
                         <th>Lote</th>
                         <th>Vencimiento</th>
-                        <th>Disponible</th>
+                        <th>Stock comercial</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -93,7 +93,7 @@
                             <td>{{ $lote->producto?->nombre }}</td>
                             <td>{{ $lote->numero_lote }}</td>
                             <td>{{ $lote->fecha_vencimiento->format('d/m/Y') }}</td>
-                            <td>{{ (int) $lote->stock_total }}</td>
+                            <td>{{ (int) $lote->stock_comercial }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="4" class="text-center text-muted py-3">Sin alertas.</td></tr>
@@ -115,7 +115,7 @@
                         <th>Producto</th>
                         <th>Lote</th>
                         <th>Vencimiento</th>
-                        <th>Disponible</th>
+                        <th>Stock comercial</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -124,7 +124,7 @@
                             <td>{{ $lote->producto?->nombre }}</td>
                             <td>{{ $lote->numero_lote }}</td>
                             <td>{{ $lote->fecha_vencimiento->format('d/m/Y') }}</td>
-                            <td>{{ (int) $lote->stock_total }}</td>
+                            <td>{{ (int) $lote->stock_comercial }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="4" class="text-center text-muted py-3">Sin alertas.</td></tr>
