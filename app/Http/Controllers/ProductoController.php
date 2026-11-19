@@ -3,13 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Producto;
-use App\Services\ProductoService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\View\View;
 use App\Models\Categoria;
 use App\Models\Laboratorio;
 use App\Models\AlertaStock;
+use App\Models\ListaPrecio;
+use App\Models\ProductoPrecio;
+use Illuminate\Support\Facades\DB;
 
 
 class ProductoController extends Controller
@@ -31,9 +33,9 @@ class ProductoController extends Controller
     if ($request->filled('buscar')) {
         $buscar = $request->buscar;
         $query->where(function ($q) use ($buscar) {
-            $q->where('nombre', 'like', "%{$buscar}%")
-              ->orWhere('codigo_interno', 'like', "%{$buscar}%")
-              ->orWhere('principio_activo', 'like', "%{$buscar}%");
+            $q->where('nombre', 'ilike', "%{$buscar}%")
+              ->orWhere('codigo_interno', 'ilike', "%{$buscar}%")
+              ->orWhere('principio_activo', 'ilike', "%{$buscar}%");
         });
     }
 
@@ -93,9 +95,9 @@ class ProductoController extends Controller
     }
 
     // ===================== GUARDAR =====================
+
     public function store(Request $request)
     {
-        // Validar
         $validated = $request->validate([
             'codigo_interno' => 'required|string|unique:productos',
             'codigo_barra' => 'nullable|string|unique:productos',
@@ -113,15 +115,42 @@ class ProductoController extends Controller
             'registro_isp' => 'nullable|string',
             'stock_minimo' => 'required|integer|min:0',
             'stock_critico' => 'required|integer|min:0',
-            'precio_base' => 'required|numeric|min:0',
+            'precio_base' => 'required|numeric|min:1',
         ]);
 
-        // Crear
-        $producto = Producto::create($validated);
+        DB::transaction(function () use ($validated) {
 
-        return redirect()->route('productos.show', $producto)
-            ->with('success', 'Producto creado exitosamente');
+            $producto = Producto::create($validated);
+
+            $lista = ListaPrecio::where('nombre', 'Lista Normal')
+                ->where('activa', true)
+                ->firstOrFail();
+
+            $impuestoPct = 19;
+
+            $precioVenta = (float) $validated['precio_base'];
+
+            $precioNeto = round(
+                $precioVenta / (1 + $impuestoPct / 100),
+                2
+            );
+
+            ProductoPrecio::create([
+                'producto_id' => $producto->id,
+                'lista_precio_id' => $lista->id,
+                'precio_neto' => $precioNeto,
+                'impuesto_pct' => $impuestoPct,
+                'precio_venta' => $precioVenta,
+                'vigente_desde' => today(),
+                'vigente_hasta' => null,
+            ]);
+        });
+
+        return redirect()
+            ->route('productos.index')
+            ->with('success', 'Producto creado exitosamente con su precio de venta.');
     }
+
 
     // ===================== VER =====================
     public function show(Producto $producto)
@@ -203,9 +232,9 @@ class ProductoController extends Controller
             return response()->json(['data' => []]);
         }
 
-        $productos = Producto::where('nombre', 'like', "%{$termino}%")
-            ->orWhere('codigo_interno', 'like', "%{$termino}%")
-            ->orWhere('codigo_barra', 'like', "%{$termino}%")
+        $productos = Producto::where('nombre', 'ilike', "%{$termino}%")
+            ->orWhere('codigo_interno', 'ilike', "%{$termino}%")
+            ->orWhere('codigo_barra', 'ilike', "%{$termino}%")
             ->activos()
             ->get();
 

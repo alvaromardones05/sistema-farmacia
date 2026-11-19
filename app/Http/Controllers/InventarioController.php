@@ -57,11 +57,11 @@ class InventarioController extends Controller
 
         $q->where(function ($sub) use ($termino) {
             $sub->whereHas('producto', function ($p) use ($termino) {
-                $p->where('nombre', 'like', "%{$termino}%")
-                    ->orWhere('codigo_interno', 'like', "%{$termino}%");
+                $p->where('nombre', 'ilike', "%{$termino}%")
+                    ->orWhere('codigo_interno', 'ilike', "%{$termino}%");
             })
             ->orWhereHas('lote', function ($l) use ($termino) {
-                $l->where('numero_lote', 'like', "%{$termino}%");
+                $l->where('numero_lote', 'ilike', "%{$termino}%");
             });
         });
     });

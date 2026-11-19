@@ -33,10 +33,10 @@ return new class extends Migration
 
             $table->dateTime('fecha_venta');
 
-            $table->unsignedBigInteger('subtotal')->default(0);
-            $table->unsignedBigInteger('descuento')->default(0);
-            $table->unsignedBigInteger('impuesto')->default(0);
-            $table->unsignedBigInteger('total')->default(0);
+            $table->decimal('subtotal', 12, 2)->default(0);
+            $table->decimal('descuento', 12, 2)->default(0);
+            $table->decimal('impuesto', 12, 2)->default(0);
+            $table->decimal('total', 12, 2)->default(0);
 
             $table->enum(
                 'estado',

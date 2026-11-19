@@ -44,7 +44,7 @@
 
     <script>
     (function() {
-        var savedTheme = localStorage.getItem('theme') 
+        var savedTheme = localStorage.getItem('theme')
             || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         document.documentElement.setAttribute('data-bs-theme', savedTheme);
     })();
@@ -183,9 +183,9 @@
 
                 <!-- CAJA -->
 
-                @hasrole('Técnico Farmacéutico')
+                @hasrole('Técnico Farmacéutico|Químico Farmacéutico')
                     <a
-                    
+
                         href="{{ route('caja.index') }}"
                         class="nav-link
                         {{ request()->routeIs('caja.*') ? 'active' : '' }}"
@@ -262,7 +262,7 @@
 
                 <!-- VENTAS -->
 
-                @hasanyrole('Técnico Farmacéutico')
+                @hasanyrole('Técnico Farmacéutico|Químico Farmacéutico')
                     <a href="{{ route('ventas.index') }}" class="nav-link {{ request()->routeIs('ventas.*') ? 'active' : '' }}">
                         <i class="bi bi-cart-check me-2"></i>Ventas
                     </a>
@@ -272,7 +272,7 @@
                 <!-- PACIENTES -->
                 @hasanyrole('Técnico Farmacéutico|Químico Farmacéutico')
                     <a
-                    
+
                         href="{{ route('pacientes.index') }}"
                         class="nav-link
                         {{ request()->routeIs('pacientes.*') ? 'active' : '' }}"
@@ -762,7 +762,7 @@
         z-index: 5;
     }
 
-    
+
 
     .sidebar > * { position: relative; z-index: 1; }
 
@@ -853,7 +853,7 @@
         box-shadow: 0 0 12px rgba(37, 99, 235, 0.5);
     }
 
-    
+
 
     /* =====================================================
     CONTENIDO
@@ -1150,7 +1150,7 @@
         background: var(--surface-2);
     }
 
-    
+
 
     /* =====================================================
     DROPDOWNS GENÉRICOS
@@ -1398,11 +1398,11 @@
             // 2. Evento del botón
             btn && btn.addEventListener('click', () => {
                 const next = htmlEl.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
-                
+
                 // Aplicar tema
                 htmlEl.setAttribute('data-bs-theme', next);
                 localStorage.setItem('theme', next);
-                
+
                 // Cambiar ícono
                 if (icon) {
                     icon.className = next === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
@@ -1416,4 +1416,3 @@
 </body>
 
 </html>
-

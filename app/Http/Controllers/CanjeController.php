@@ -27,19 +27,26 @@ class CanjeController extends Controller
 
     public function index(Request $request)
     {
-        $estados = ['pendiente', 'aprobado', 'en_proceso', 'rechazado', 'completado'];
-        $estado = $request->query('estado');
+        $filtro = $request->query('estado', 'activos');
+        $grupos = [
+            'activos'    => ['aprobado', 'en_proceso'],
+            'pendiente'  => ['pendiente'],
+            'completado' => ['completado'],
+            'rechazado'  => ['rechazado'],
+        ];
 
-        $canjes = Canje::with(['producto', 'loteOriginal', 'solicitante'])
-            ->withSum('entregas as cantidad_enviada', 'cantidad_enviada')
-            ->withSum('entregas as cantidad_aceptada', 'cantidad_aceptada')
-            ->withSum('reposiciones as cantidad_repuesta', 'cantidad')
-            ->when(in_array($estado, $estados, true), fn($query) => $query->where('estado', $estado))
+        $canjes = Canje::with(['producto', 'loteOriginal', 'solicitante', 'entregas', 'devoluciones', 'reposiciones'])
+            ->when(isset($grupos[$filtro]), fn($query) => $query->whereIn('estado', $grupos[$filtro]))
             ->latest('fecha_solicitud')
             ->paginate(15)
             ->withQueryString();
 
-        return view('inventario.canjes.index', compact('canjes', 'estado', 'estados'));
+        $porEstado = Canje::selectRaw('estado, COUNT(*) as total')->groupBy('estado')->pluck('total', 'estado');
+        $conteos = collect($grupos)->map(
+            fn($estados) => collect($estados)->sum(fn($estado) => (int) ($porEstado[$estado] ?? 0))
+        );
+
+        return view('inventario.canjes.index', compact('canjes', 'filtro', 'conteos'));
     }
 
     public function create(Request $request, Lote $lote)
@@ -169,7 +176,7 @@ class CanjeController extends Controller
             'entregas.usuario', 'entregas.proveedor', 'entregas.movimiento.ubicacion',
             'entregas.respuestas.usuario', 'entregas.respuestas.proveedor', 'entregas.devoluciones.usuario',
             'entregas.devoluciones.proveedor', 'entregas.devoluciones.movimiento.ubicacion',
-            'reposiciones.lote', 'reposiciones.usuario', 'reposiciones.proveedor', 'reposiciones.movimiento.ubicacion',
+            'reposiciones.lote', 'reposiciones.usuario', 'reposiciones.proveedor', 'reposiciones.movimiento.ubicacion','movimientoSaldo.ubicacion'
         ]);
 
         $canje->cantidad_enviada = $canje->entregas->sum('cantidad_enviada');
@@ -567,10 +574,11 @@ class CanjeController extends Controller
     {
         $this->autorizarOperacionControlada($canje);
         $validated = $request->validate([
-            'cantidad' => 'required|integer|min:1',
-            'numero_lote' => 'required|string|max:100',
-            'fecha_fabricacion' => 'required|date|before_or_equal:today|before:fecha_vencimiento',
-            'fecha_vencimiento' => 'required|date|after:today',
+            'lotes' => 'required|array|min:1|max:20',
+            'lotes.*.numero_lote' => 'required|string|max:100|distinct',
+            'lotes.*.cantidad' => 'required|integer|min:1',
+            'lotes.*.fecha_fabricacion' => 'required|date|before_or_equal:today|before:lotes.*.fecha_vencimiento',
+            'lotes.*.fecha_vencimiento' => 'required|date|after:today',
             'proveedor_id' => ['nullable', 'integer', Rule::exists('proveedores', 'id')->where('activo', true)],
             'numero_documento' => 'required|string|max:100',
             'idempotency_token' => 'required|uuid',
@@ -579,64 +587,30 @@ class CanjeController extends Controller
         try {
             DB::transaction(function () use ($canje, $validated) {
                 $actual = Canje::whereKey($canje->id)->lockForUpdate()->firstOrFail();
+                $lineas = array_values($validated['lotes']);
+                // Cada línea necesita su propio token (la columna es única): se derivan del token del formulario
+                $tokenLinea = fn(int $i) => \Ramsey\Uuid\Uuid::uuid5($validated['idempotency_token'], "linea-{$i}")->toString();
+
                 if (CanjeReposicion::where('canje_id', $actual->id)
-                    ->where('idempotency_token', $validated['idempotency_token'])
+                    ->where('idempotency_token', $tokenLinea(0))
                     ->exists()) {
                     return;
                 }
                 $this->validarAbierto($actual);
+
                 $proveedorId = $validated['proveedor_id'] ?? null;
                 $documentoKey = $this->documentoKey($validated['numero_documento'], $proveedorId);
                 $usuario = auth()->user();
                 $producto = Producto::findOrFail($actual->producto_id);
+
                 $entregado = (int) $actual->entregas()->sum('cantidad_aceptada');
                 $repuesto = (int) $actual->reposiciones()->sum('cantidad');
-                if ($entregado <= $repuesto || $repuesto + $validated['cantidad'] > $entregado) {
-                    throw ValidationException::withMessages(['cantidad' => 'La reposición debe corresponder a unidades entregadas y no puede superar el saldo pendiente.']);
+                $totalNuevo = (int) array_sum(array_column($lineas, 'cantidad'));
+                if ($entregado <= $repuesto || $repuesto + $totalNuevo > $entregado) {
+                    throw ValidationException::withMessages(['lotes' => 'La reposición debe corresponder a unidades entregadas y no puede superar el saldo pendiente.']);
                 }
 
                 $loteOriginal = Lote::whereKey($actual->lote_original_id)->firstOrFail();
-                $numeroLote = trim($validated['numero_lote']);
-                if ($numeroLote === $loteOriginal->numero_lote) {
-                    throw ValidationException::withMessages(['numero_lote' => 'La reposición debe utilizar un lote distinto del lote original.']);
-                }
-
-                $lote = Lote::where('numero_lote', $numeroLote)->lockForUpdate()->first();
-                if ($lote) {
-                    if ($this->documentoDuplicado(
-                        CanjeReposicion::class,
-                        $actual->id,
-                        $validated['numero_documento'],
-                        $proveedorId,
-                        'lote_id',
-                        $lote->id
-                    )) {
-                        throw ValidationException::withMessages(['numero_documento' => 'Ese documento ya fue registrado para este lote dentro del canje.']);
-                    }
-
-                    if (
-                        (int) $lote->producto_id !== (int) $producto->id
-                        || $lote->fecha_vencimiento->format('Y-m-d') !== $validated['fecha_vencimiento']
-                        || ($lote->fecha_fabricacion && $lote->fecha_fabricacion->format('Y-m-d') !== $validated['fecha_fabricacion'])
-                    ) {
-                        throw ValidationException::withMessages(['numero_lote' => 'Ese número de lote ya existe con datos incompatibles.']);
-                    }
-                    $lote->increment('cantidad_inicial', $validated['cantidad']);
-                    $lote->update([
-                        'estado' => 'activo',
-                        'fecha_fabricacion' => $lote->fecha_fabricacion ?? $validated['fecha_fabricacion'],
-                    ]);
-                } else {
-                    $lote = Lote::create([
-                        'producto_id' => $producto->id,
-                        'numero_lote' => $numeroLote,
-                        'fecha_fabricacion' => $validated['fecha_fabricacion'],
-                        'fecha_vencimiento' => $validated['fecha_vencimiento'],
-                        'cantidad_inicial' => $validated['cantidad'],
-                        'estado' => 'activo',
-                        'observaciones' => "Reposición del canje #{$actual->id}.",
-                    ]);
-                }
 
                 $tipoUbicacion = $producto->condicion_almacenamiento === 'refrigerado' ? 'frigorifica' : 'bodega';
                 $ubicacion = UbicacionAlmacen::where('tipo', $tipoUbicacion)
@@ -645,45 +619,92 @@ class CanjeController extends Controller
                     ->first();
                 if (!$ubicacion) {
                     throw ValidationException::withMessages([
-                        'cantidad' => $tipoUbicacion === 'frigorifica'
+                        'lotes' => $tipoUbicacion === 'frigorifica'
                             ? 'No existe una ubicación frigorífica activa para almacenar la reposición.'
                             : 'No existe una bodega activa para almacenar la reposición.',
                     ]);
                 }
 
-                $entrada = Stock::registrarEntrada(
-                    $producto,
-                    $lote,
-                    $ubicacion,
-                    $validated['cantidad'],
-                    $usuario->id,
-                    $this->referenciaDocumento($actual),
-                    'Reposición recibida por canje'
-                );
-                $this->registrarLibroControl($producto, $lote, $entrada, 'entrada', $usuario);
+                foreach ($lineas as $i => $linea) {
+                    $numeroLote = trim($linea['numero_lote']);
+                    $cantidad = (int) $linea['cantidad'];
 
-                CanjeReposicion::create([
-                    'canje_id' => $actual->id,
-                    'movimiento_stock_id' => $entrada->id,
-                    'lote_id' => $lote->id,
-                    'cantidad' => $validated['cantidad'],
-                    'fecha_recepcion' => now(),
-                    'usuario_id' => $usuario->id,
-                    'proveedor_id' => $validated['proveedor_id'] ?? null,
-                    'numero_documento' => trim($validated['numero_documento']),
-                    'documento_key' => $documentoKey,
-                    'idempotency_token' => $validated['idempotency_token'],
-                ]);
+                    if ($numeroLote === $loteOriginal->numero_lote) {
+                        throw ValidationException::withMessages(["lotes.{$i}.numero_lote" => "El lote {$numeroLote} es el lote original: la reposición debe usar un lote distinto."]);
+                    }
+
+                    $lote = Lote::where('numero_lote', $numeroLote)->lockForUpdate()->first();
+                    if ($lote) {
+                        if ($this->documentoDuplicado(
+                            CanjeReposicion::class,
+                            $actual->id,
+                            $validated['numero_documento'],
+                            $proveedorId,
+                            'lote_id',
+                            $lote->id
+                        )) {
+                            throw ValidationException::withMessages(["lotes.{$i}.numero_documento" => "Ese documento ya fue registrado para el lote {$numeroLote} dentro del canje."]);
+                        }
+
+                        if (
+                            (int) $lote->producto_id !== (int) $producto->id
+                            || $lote->fecha_vencimiento->format('Y-m-d') !== $linea['fecha_vencimiento']
+                            || ($lote->fecha_fabricacion && $lote->fecha_fabricacion->format('Y-m-d') !== $linea['fecha_fabricacion'])
+                        ) {
+                            throw ValidationException::withMessages(["lotes.{$i}.numero_lote" => "El lote {$numeroLote} ya existe con datos incompatibles."]);
+                        }
+                        $lote->increment('cantidad_inicial', $cantidad);
+                        $lote->update([
+                            'estado' => 'activo',
+                            'fecha_fabricacion' => $lote->fecha_fabricacion ?? $linea['fecha_fabricacion'],
+                        ]);
+                    } else {
+                        $lote = Lote::create([
+                            'producto_id' => $producto->id,
+                            'numero_lote' => $numeroLote,
+                            'fecha_fabricacion' => $linea['fecha_fabricacion'],
+                            'fecha_vencimiento' => $linea['fecha_vencimiento'],
+                            'cantidad_inicial' => $cantidad,
+                            'estado' => 'activo',
+                            'observaciones' => "Reposición del canje #{$actual->id}.",
+                        ]);
+                    }
+
+                    $entrada = Stock::registrarEntrada(
+                        $producto,
+                        $lote,
+                        $ubicacion,
+                        $cantidad,
+                        $usuario->id,
+                        $this->referenciaDocumento($actual),
+                        'Reposición recibida por canje'
+                    );
+                    $this->registrarLibroControl($producto, $lote, $entrada, 'entrada', $usuario);
+
+                    CanjeReposicion::create([
+                        'canje_id' => $actual->id,
+                        'movimiento_stock_id' => $entrada->id,
+                        'lote_id' => $lote->id,
+                        'cantidad' => $cantidad,
+                        'fecha_recepcion' => now(),
+                        'usuario_id' => $usuario->id,
+                        'proveedor_id' => $proveedorId,
+                        'numero_documento' => trim($validated['numero_documento']),
+                        'documento_key' => $documentoKey,
+                        'idempotency_token' => $tokenLinea($i),
+                    ]);
+                }
+
                 $actual->update(['estado' => 'en_proceso']);
             }, 3);
         } catch (ValidationException $exception) {
             throw $exception;
         } catch (\Throwable $exception) {
             report($exception);
-            return back()->withInput()->withErrors(['reposicion' => 'No se pudo registrar la reposición. No se confirmó el movimiento.']);
+            return back()->withInput()->withErrors(['reposicion' => 'No se pudo registrar la reposición. No se confirmó ningún movimiento.']);
         }
 
-        return back()->with('success', 'Reposición registrada con su lote y movimiento de entrada.');
+        return back()->with('success', 'Reposición registrada con ' . count($validated['lotes']) . ' lote(s) y sus movimientos de entrada.');
     }
 
     public function cerrar(Canje $canje)
@@ -831,5 +852,100 @@ class CanjeController extends Controller
         if ($producto->es_controlado) {
             abort_unless(auth()->user()->hasRole('Químico Farmacéutico'), 403);
         }
+    }
+
+
+    public function cerrarSaldo(Canje $canje)
+    {
+        $this->autorizarOperacionControlada($canje);
+        $resultado = null;
+
+        try {
+            DB::transaction(function () use ($canje, &$resultado) {
+                $actual = Canje::whereKey($canje->id)->lockForUpdate()->firstOrFail();
+                if ($actual->movimiento_saldo_id) {
+                    return;
+                }
+                $this->validarAbierto($actual);
+
+                $aceptado = (int) $actual->entregas()->sum('cantidad_aceptada');
+                $rechazado = (int) $actual->entregas()->sum('cantidad_rechazada');
+                $devuelto = (int) CanjeDevolucion::where('canje_id', $actual->id)->sum('cantidad');
+                $pendienteRespuesta = (int) $actual->entregas()
+                    ->selectRaw('COALESCE(SUM(cantidad_enviada - cantidad_aceptada - cantidad_rechazada), 0) as cantidad_pendiente')
+                    ->value('cantidad_pendiente');
+                $saldo = (int) $actual->cantidad_solicitada - $aceptado;
+
+                if ($pendienteRespuesta > 0 || $rechazado > $devuelto) {
+                    throw ValidationException::withMessages(['canje' => 'Primero registra la respuesta y el retorno de todos los envíos.']);
+                }
+                if ($saldo < 1) {
+                    throw ValidationException::withMessages(['canje' => 'No quedan unidades por sacar de la zona de Canje.']);
+                }
+
+                $usuario = auth()->user();
+                $producto = Producto::findOrFail($actual->producto_id);
+                $lote = Lote::whereKey($actual->lote_original_id)->lockForUpdate()->firstOrFail();
+                $canjeUbicacion = $this->ubicacionCanje();
+                $stock = Stock::where('producto_id', $producto->id)
+                    ->where('lote_id', $lote->id)
+                    ->where('ubicacion_id', $canjeUbicacion->id)
+                    ->lockForUpdate()
+                    ->first();
+                if (!$stock || $stock->cantidad < $saldo) {
+                    throw ValidationException::withMessages(['canje' => 'No hay stock suficiente en la zona de Canje para mover el saldo.']);
+                }
+
+                $origen = UbicacionAlmacen::find($actual->ubicacion_origen_id);
+                $vuelveAlOrigen = $lote->estado === 'activo'
+                    && $lote->fecha_vencimiento->gt(today()->addDays(Canje::DIAS_MINIMOS_PARA_REINGRESO))
+                    && $origen && $origen->activo
+                    && in_array($origen->tipo, $this->tiposCompatibles($producto), true);
+                $destino = $vuelveAlOrigen ? $origen : $this->ubicacionCuarentena();
+                $motivo = $vuelveAlOrigen
+                    ? 'Saldo de canje que vuelve a su ubicación de origen'
+                    : 'Saldo de canje no aceptado, pasa a Cuarentena como no apto';
+
+                $salida = Stock::registrarSalida(
+                    $producto, $lote, $canjeUbicacion, $saldo, $usuario->id,
+                    'transferencia', "Canje #{$actual->id}", $motivo
+                );
+                $this->registrarLibroControl($producto, $lote, $salida, 'salida', $usuario);
+
+                $entrada = Stock::registrarEntrada(
+                    $producto, $lote, $destino, $saldo, $usuario->id,
+                    "Canje #{$actual->id}", $motivo
+                );
+                $this->registrarLibroControl($producto, $lote, $entrada, 'entrada', $usuario);
+
+                $actual->update([
+                    'cantidad_original' => $actual->cantidad_solicitada,
+                    'cantidad_solicitada' => $aceptado,
+                    'movimiento_saldo_id' => $entrada->id,
+                    'estado' => 'en_proceso',
+                ]);
+
+                $resultado = $vuelveAlOrigen
+                    ? "{$saldo} unidades volvieron a su ubicación de origen."
+                    : "{$saldo} unidades pasaron a Cuarentena como no aptas.";
+            }, 3);
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            report($exception);
+            return back()->withErrors(['canje' => 'No se pudo mover el saldo. No se confirmó ningún movimiento.']);
+        }
+
+        return back()->with('success', $resultado ?? 'El saldo ya había sido registrado.');
+    }
+
+    private function ubicacionCuarentena(): UbicacionAlmacen
+    {
+        return UbicacionAlmacen::where('tipo', 'cuarentena')
+            ->where('activo', true)
+            ->orderBy('id')
+            ->firstOr(function () {
+                throw ValidationException::withMessages(['canje' => 'No existe una ubicación de Cuarentena activa.']);
+            });
     }
 }

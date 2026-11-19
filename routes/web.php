@@ -317,6 +317,9 @@ Route::middleware('permission:gestionar_stock|autorizar_libro_isp')->group(funct
     Route::post('/inventario/canjes/{canje}/cerrar', [CanjeController::class, 'cerrar'])
         ->whereNumber('canje')
         ->name('inventario.canjes.cerrar');
+
+    Route::post('inventario/canjes/{canje}/saldo', [CanjeController::class, 'cerrarSaldo'])
+        ->name('inventario.canjes.saldo');
 });
 
 // Escritura: quien tenga gestionar_stock (Técnico)

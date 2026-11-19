@@ -167,6 +167,7 @@
             <input type="hidden" name="producto_id" id="traslado_producto_id">
             <input type="hidden" name="ubicacion_origen_id" id="traslado_origen_id">
             <input type="hidden" name="motivo" id="traslado_motivo" value="Traslado interno de stock">
+            <input type="hidden" name="ubicacion_destino_id" id="traslado_destino_id">
 
             <div class="modal-body">
                 <div class="alert-banner warning" id="alertControlado" style="display:none;">
@@ -284,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('traslado_producto_id').value = pId;
         document.getElementById('traslado_origen_id').value = uId;
         document.getElementById('traslado_subtitulo').innerHTML = `${btn.dataset.productoNombre} · <span class="mono">${btn.dataset.productoCodigo || 'S/C'}</span>`;
-        
+
         // Alert controlado
         document.getElementById('alertControlado').style.display = (btn.dataset.productoControlado === '1') ? 'flex' : 'none';
 
@@ -296,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
             lotesMap[s.lote_id].cantidad += s.cantidad;
         });
         const lotes = Object.values(lotesMap);
-        
+
         const loteHtml = lotes.map((l, i) => `
             <label class="lote-option ${i === 0 ? 'selected' : ''}" data-lote="${l.id}" data-stock="${l.cantidad}">
                 <input type="radio" name="lote_id" value="${l.id}" ${i === 0 ? 'checked' : ''}>
@@ -311,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </label>
         `).join('');
         document.getElementById('traslado_lote_options').innerHTML = loteHtml || '<div class="text-muted small">No hay lotes disponibles.</div>';
-        
+
         if(lotes.length > 0) {
             currentLoteStock = lotes[0].cantidad;
             document.getElementById('qtyMax').textContent = currentLoteStock + ' uds';
@@ -341,14 +342,31 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('traslado_dest_grid').innerHTML = destHtml;
 
         // Resetear UI
+        // Resetear UI
         document.getElementById('qtyInput').value = 1;
         document.getElementById('motivoInput').value = '';
         document.getElementById('motivoSection').style.display = 'none';
         document.getElementById('prev_origen_name').textContent = btn.dataset.ubicacionNombre;
-        
+
+        // Reiniciar destino
+        currentDestinoId = null;
+        currentDestinoTipo = null;
+        document.getElementById('traslado_destino_id').value = '';
+
+        // Configurar eventos
         setupEventosTraslado();
-        updatePreviewTraslado();
-        
+
+        // Seleccionar automáticamente el primer destino válido
+        const primerDestino = document.querySelector(
+            '#traslado_dest_grid .dest-card:not(.danger)'
+        );
+
+        if (primerDestino) {
+            primerDestino.click();
+        } else {
+            updatePreviewTraslado();
+        }
+
         document.getElementById('modalTraslado').classList.add('active');
     };
 
@@ -362,11 +380,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.querySelectorAll('#traslado_lote_options .lote-option').forEach(o => o.classList.remove('selected'));
                 opt.classList.add('selected');
                 opt.querySelector('input').checked = true;
-                
+
                 currentLoteStock = parseInt(opt.dataset.stock);
                 document.getElementById('qtyMax').textContent = currentLoteStock + ' uds';
                 document.getElementById('qtyInput').max = currentLoteStock;
-                
+
                 if (parseInt(document.getElementById('qtyInput').value) > currentLoteStock) {
                     document.getElementById('qtyInput').value = currentLoteStock;
                 }
@@ -378,10 +396,12 @@ document.addEventListener('DOMContentLoaded', () => {
             card.addEventListener('click', () => {
                 document.querySelectorAll('#traslado_dest_grid .dest-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
-                
+
                 currentDestinoId = card.dataset.dest;
                 currentDestinoTipo = card.dataset.tipo;
-                
+
+                document.getElementById('traslado_destino_id').value = currentDestinoId;
+
                 // Mostrar motivo si es cuarentena
                 if (currentDestinoTipo === 'cuarentena') {
                     document.getElementById('motivoSection').style.display = 'block';
@@ -412,7 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const qty = parseInt(document.getElementById('qtyInput').value) || 0;
         const destSel = document.querySelector('#traslado_dest_grid .dest-card.selected');
         const pId = document.getElementById('traslado_producto_id').value;
-        
+
         // Actualizar origen
         document.getElementById('prev_origen_before').textContent = currentLoteStock;
         const afterOrigen = currentLoteStock - qty;
@@ -423,10 +443,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (destSel) {
             const dId = destSel.dataset.dest;
             const destName = destSel.querySelector('.dest-name').textContent;
-            
+
             const destBefore = stock.filter(s => s.producto_id == pId && s.ubicacion_id == dId)
                                     .reduce((sum, s) => sum + parseInt(s.cantidad), 0);
-            
+
             document.getElementById('prev_dest_name').textContent = destName;
             document.getElementById('prev_dest_before').textContent = destBefore;
             document.getElementById('prev_dest_after').textContent = destBefore + qty;
@@ -435,7 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Validar motivo
         const isCuarentena = currentDestinoTipo === 'cuarentena';
         const motivo = document.getElementById('motivoInput').value.trim();
-        
+
         if (isCuarentena && !motivo) {
             document.getElementById('motivoHint').style.display = 'flex';
             document.getElementById('confirmBtn').disabled = true;

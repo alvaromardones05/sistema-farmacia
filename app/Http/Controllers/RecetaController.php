@@ -26,9 +26,9 @@ class RecetaController extends Controller
         if (!empty($filtros['paciente'])) {
             $buscar = $filtros['paciente'];
             $query->whereHas('paciente', fn ($q) => $q->where(function ($q) use ($buscar) {
-                $q->where('rut', 'like', "%{$buscar}%")
-                    ->orWhere('nombres', 'like', "%{$buscar}%")
-                    ->orWhere('apellidos', 'like', "%{$buscar}%");
+                $q->where('rut', 'ilike', "%{$buscar}%")
+                    ->orWhere('nombres', 'ilike', "%{$buscar}%")
+                    ->orWhere('apellidos', 'ilike', "%{$buscar}%");
             }));
         }
         if (!empty($filtros['estado'])) {

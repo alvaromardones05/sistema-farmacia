@@ -15,9 +15,9 @@ class ProveedorController extends Controller
             $buscar = $request->buscar;
 
             $query->where(function ($q) use ($buscar) {
-                $q->where('nombre_razon_social', 'like', "%{$buscar}%")
-                    ->orWhere('rut', 'like', "%{$buscar}%")
-                    ->orWhere('contacto_nombre', 'like', "%{$buscar}%");
+                $q->where('nombre_razon_social', 'ilike', "%{$buscar}%")
+                    ->orWhere('rut', 'ilike', "%{$buscar}%")
+                    ->orWhere('contacto_nombre', 'ilike', "%{$buscar}%");
             });
         }
 

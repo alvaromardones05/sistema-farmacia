@@ -32,7 +32,7 @@ return new class extends Migration
             $table->integer('cantidad_aceptada')->default(0);
             $table->integer('cantidad_rechazada')->default(0);
 
-            $table->unsignedBigInteger('precio_unitario');
+            $table->decimal('precio_unitario', 12, 2);
 
             $table->string('numero_lote', 100);
             $table->date('fecha_fabricacion')->nullable();

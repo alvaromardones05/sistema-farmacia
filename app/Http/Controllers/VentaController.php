@@ -203,13 +203,11 @@ class VentaController extends Controller
             throw $e;
 
         } catch (\Throwable $e) {
-            report($e);
-
-            return back()
-                ->withInput()
-                ->withErrors([
-                    'venta' => 'No fue posible procesar la venta. Intenta nuevamente.',
-                ]);
+            dd([
+                'error' => $e->getMessage(),
+                'archivo' => $e->getFile(),
+                'linea' => $e->getLine(),
+            ]);
         }
 
         return redirect()

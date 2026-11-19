@@ -8,7 +8,6 @@
 <style>
     /* ================= ESTILOS EXACTOS DEL POS ================= */
     :root {
-        /* Mapeamos las variables locales a las globales (con fallback al color claro) */
         --bg: var(--page-bg, #f4f6fa);
         --surface: var(--surface, #fff);
         --border: var(--border, #e5e9f0);
@@ -25,8 +24,7 @@
         --warning-soft: var(--warning-soft, #fffbeb);
         --danger: var(--danger, #dc2626);
         --danger-soft: var(--danger-soft, #fef2f2);
-        
-        /* Estos se mantienen igual */
+
         --radius-sm: 10px;
         --radius: 14px;
         --radius-lg: 18px;
@@ -35,7 +33,7 @@
     }
 
     .pos-container { background: var(--bg); font-family: 'Inter', system-ui, sans-serif; font-size: 16px; color: var(--text); margin: -1.5rem; padding: 1.5rem; min-height: calc(100vh - 60px); display: flex; flex-direction: column;}
-    
+
     .pos-layout { display: grid; grid-template-columns: 1fr 460px; gap: 1.5rem; flex: 1; overflow: hidden; }
     .left-col { display: flex; flex-direction: column; gap: 1.5rem; height: 100%; overflow: hidden; }
     .right-col { display: flex; flex-direction: column; gap: 1.25rem; height: 100%; }
@@ -93,14 +91,14 @@
     .btn-text:hover { text-decoration: underline; }
 
     .prescription-box { display: flex; align-items: center; gap: 1rem; }
-    .prescription-icon { width: 50px; height: 50px; border-radius: 12px; background: var(--bg); border: 1px solid var(--border-strong); color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; }
+    .prescription-icon { width: 50px; height: 50px; border-radius: 12px; background: var(--bg); border: 1px solid var(--border-strong); color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; transition: all 0.3s; }
     .prescription-info { flex: 1; }
     .prescription-title { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.1rem; }
-    .prescription-desc { font-size: 0.85rem; color: var(--text-muted); }
+    .prescription-desc { font-size: 0.85rem; color: var(--text-muted); transition: color 0.3s; }
 
     .checkout-panel { margin-top: auto; display: flex; flex-direction: column; padding: 1.5rem; }
     .totals-row { display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 1.05rem; color: var(--text-muted); font-weight: 500; }
-    .totals-row.total { margin-top: 0.5rem; padding-top: 1.25rem; border-top: 2px solid var(--border-strong); font-size: 2.2rem; font-weight: 800; color: var(--text); margin-bottom: 1.5rem; } 
+    .totals-row.total { margin-top: 0.5rem; padding-top: 1.25rem; border-top: 2px solid var(--border-strong); font-size: 2.2rem; font-weight: 800; color: var(--text); margin-bottom: 1.5rem; }
     .payment-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.5rem; }
     .payment-btn { padding: 0.85rem; border: 1.5px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; transition: all 0.15s; font-size: 0.95rem; font-weight: 600; color: var(--text-muted); font-family: inherit; }
     .payment-btn i { font-size: 1.2rem; }
@@ -109,14 +107,17 @@
     .btn-checkout { width: 100%; padding: 1.25rem; background: var(--primary); color: white; border: none; border-radius: var(--radius); font-size: 1.15rem; font-weight: 700; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 0.75rem; transition: all 0.15s; font-family: inherit; box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
     .btn-checkout:hover:not(:disabled) { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(79,70,229,0.4); }
     .btn-checkout:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
-    
-    /* Clases utilitarias adaptadas */
+
+    /* Utilidades y Modales */
     .d-none { display: none !important; }
+    .tarjeta-receta { border: 2px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s; background: var(--surface); }
+    .tarjeta-receta:hover { border-color: var(--primary); box-shadow: 0 4px 12px var(--primary-soft); transform: translateY(-2px); }
+    .tarjeta-receta .badge { font-size: 0.75rem; }
 </style>
 
 <div class="container-fluid px-0 inventario-modulo">
     <div class="pos-container">
-        
+
         @if ($errors->any())
             <div class="alert alert-danger mb-3">
                 <ul class="mb-0">
@@ -167,7 +168,6 @@
                 </div>
             @endif
 
-            {{-- 1. DEFINICIÓN DE VARIABLES PARA JS --}}
             @php
                 $pacientesParaJs = $pacientes->map(fn ($paciente) => [
                     'id' => $paciente->id,
@@ -188,7 +188,6 @@
                 <div class="pos-layout">
                     <!-- COLUMNA IZQUIERDA -->
                     <div class="left-col">
-                        <!-- Búsqueda y Lista de Productos -->
                         <section class="products-panel">
                             <div class="search-area">
                                 <div class="search-bar">
@@ -200,7 +199,7 @@
                                     @foreach ($productos as $producto)
                                         <option value="{{ $producto['id'] }}"
                                             data-nombre="{{ $producto['nombre'] }}"
-                                            data-codigo-barra="{{ $producto['codigo_barra'] }}"
+                                            data-codigo-barra="{{ $producto['codigo_barra'] ?? $producto['codigo'] ?? '' }}"
                                             data-precio="{{ $producto['precio_neto'] }}"
                                             data-disponible="{{ $producto['disponible'] }}"
                                             data-requiere-receta="{{ $producto['requiere_receta'] ? '1' : '0' }}"
@@ -213,7 +212,6 @@
                             <div class="product-list" id="productList"></div>
                         </section>
 
-                        <!-- Carrito -->
                         <section class="cart-panel">
                             <div class="cart-header">
                                 <h3><i class="bi bi-cart3 text-primary"></i> Carro de Venta</h3>
@@ -229,7 +227,6 @@
 
                     <!-- COLUMNA DERECHA -->
                     <aside class="right-col">
-                        <!-- Cliente -->
                         <div class="card-pos">
                             <div class="client-box" id="clientBox">
                                 <div class="client-avatar"><i class="bi bi-person"></i></div>
@@ -253,7 +250,7 @@
                             <input type="hidden" name="paciente_id" id="paciente_id" value="{{ $pacienteSeleccionado?->id }}">
                         </div>
 
-                        <!-- Recetas -->
+                        <!-- Panel original de recetas mantenido intacto -->
                         <div class="card-pos" id="recetas-tarjeta" @can('gestionar_recetas') data-registro-url="{{ route('recetas.create') }}" @endcan>
                             <div class="prescription-box">
                                 <div class="prescription-icon" id="presc-icon"><i class="bi bi-file-medical"></i></div>
@@ -278,7 +275,7 @@
                                 @endcan
                                 <div id="recetas-mensaje" class="small text-warning" role="status" aria-live="polite"></div>
                                 <div id="recetas-productos"></div>
-                                
+
                                 <div id="receta-producto-bloque" class="mt-3 p-3 bg-light rounded" hidden>
                                     <h2 id="receta-producto-titulo" class="h6">Buscar receta</h2>
                                     <p id="receta-producto-aviso" class="small text-muted" role="status"></p>
@@ -295,7 +292,6 @@
                             </div>
                         </div>
 
-                        <!-- Checkout -->
                         <div class="card-pos checkout-panel">
                             <div>
                                 <div class="totals-row">
@@ -316,7 +312,6 @@
                                 <button type="button" class="payment-btn" onclick="selectPayment('transferencia', this)"><i class="bi bi-bank"></i> Transf.</button>
                             </div>
 
-                            <!-- AGREGAR ESTO EN EL BLOQUE DE PAGO -->
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Tipo de Documento *</label>
                                 <div class="d-flex gap-3">
@@ -331,7 +326,6 @@
                                 </div>
                             </div>
 
-                            <!-- CAMPOS DE FACTURA (Ocultos por defecto) -->
                             <div id="campos_factura" class="row g-3 mb-3 d-none p-3 bg-light rounded border">
                                 <div class="col-md-4">
                                     <label class="form-label">RUT Empresa *</label>
@@ -342,7 +336,7 @@
                                     <input type="text" name="razon_social" id="razon_social" class="form-control" placeholder="Supermercados Unidos S.A.">
                                 </div>
                             </div>
-                            
+
                             <select name="metodo_pago" id="metodo_pago_real" class="d-none" required>
                                 <option value="efectivo">Efectivo</option>
                                 <option value="debito">Débito</option>
@@ -363,7 +357,33 @@
                 </div>
             </form>
 
-            {{-- 2. SCRIPT DENTRO DEL @ELSE PARA QUE LAS VARIABLES EXISTAN --}}
+            {{-- NUEVO MODAL DE RECETAS (BLOQUEANTE) --}}
+            <!-- data-bs-backdrop="static" y data-bs-keyboard="false" evitan que se cierre al hacer clic afuera -->
+            <div class="modal fade" id="modalRecetas" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content" style="border-radius: var(--radius-lg); border: none; box-shadow: var(--shadow-lg);">
+                        <div class="modal-header border-0 pb-0">
+                            <h5 class="modal-title fw-bold" id="modalRecetasTitulo">Seleccionar Receta</h5>
+                            <!-- Sin botón de cerrar (X) para forzar la acción -->
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-muted mb-4" id="modalRecetasAviso"></p>
+                            <div class="row g-3" id="modalRecetasLista"></div>
+                        </div>
+                        <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-danger" onclick="cancelarReceta()">
+                                <i class="bi bi-x-circle me-1"></i> Cancelar y quitar producto
+                            </button>
+                            @can('gestionar_recetas')
+                                <a href="#" id="modalBtnRegistrar" class="btn btn-outline-primary" target="_blank">
+                                    <i class="bi bi-plus-circle me-1"></i> Registrar nueva receta
+                                </a>
+                            @endcan
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <script>
                 let carrito = [];
                 const convenios = @json($conveniosParaJs);
@@ -378,7 +398,7 @@
                 const productoSelect = document.getElementById('producto-select');
                 const searchInput = document.getElementById('searchInput');
                 const productList = document.getElementById('productList');
-                
+
                 const recetaProducto = document.getElementById('receta-producto');
                 const bloqueReceta = document.getElementById('receta-producto-bloque');
                 const recetasMensaje = document.getElementById('recetas-mensaje');
@@ -388,7 +408,7 @@
                 const recetasPacientePanel = document.getElementById('recetas-paciente-panel');
                 const verRecetasPaciente = document.getElementById('ver-recetas-paciente');
                 const asociarReceta = document.getElementById('asociar-receta');
-                
+
                 let indiceReceta = null;
                 let pacienteRecetas = pacienteInput.value;
                 let selectedPaymentMethod = null;
@@ -400,7 +420,25 @@
                 const totalAproximado = document.getElementById('total-aproximado');
                 const totSubtotal = document.getElementById('totSubtotal');
 
-                // === FUNCIÓN CLAVE PARA LA REDIRECCIÓN DE RECETAS ===
+                // Instanciar el modal de forma segura
+                function mostrarModalRecetas() {
+                    const el = document.getElementById('modalRecetas');
+                    let modal = bootstrap.Modal.getInstance(el);
+                    if (!modal) {
+                        modal = new bootstrap.Modal(el, {
+                            backdrop: 'static',
+                            keyboard: false
+                        });
+                    }
+                    modal.show();
+                }
+
+                function cerrarModalRecetas() {
+                    const el = document.getElementById('modalRecetas');
+                    const modal = bootstrap.Modal.getInstance(el);
+                    if (modal) modal.hide();
+                }
+
                 function urlRegistroReceta(item = null) {
                     if (!recetasTarjeta.dataset.registroUrl) return '#';
                     const url = new URL(recetasTarjeta.dataset.registroUrl, window.location.origin);
@@ -415,8 +453,8 @@
                     let filtered = Array.from(productoSelect.options).slice(1);
 
                     if (query) {
-                        filtered = filtered.filter(opt => 
-                            opt.dataset.nombre.toLowerCase().includes(query) || 
+                        filtered = filtered.filter(opt =>
+                            opt.dataset.nombre.toLowerCase().includes(query) ||
                             (opt.dataset.codigoBarra && opt.dataset.codigoBarra.includes(query))
                         );
                     }
@@ -448,7 +486,7 @@
 
                 function normalizarRut(rut) { return String(rut).replace(/[.\-\s]/g, '').toUpperCase(); }
                 function obtenerPacienteActual() { return pacientes.find(p => String(p.id) === pacienteInput.value) ?? null; }
-                
+
                 function recetasParaProducto(productoId, tipo) {
                     return recetasDisponibles.filter(r => String(r.paciente_id) === pacienteInput.value
                         && String(r.producto_id) === String(productoId)
@@ -465,7 +503,7 @@
                 function calcularEstimacion(productoId, precio) {
                     const convenio = obtenerConvenioActual();
                     if (!convenio) return { precioFinal: precio, texto: 'Sin convenio' };
-                    
+
                     const cobertura = convenio.coberturas[String(productoId)] ?? null;
                     if (cobertura?.copago_fijo > 0) {
                         const copago = Math.min(precio, Number(cobertura.copago_fijo));
@@ -526,6 +564,9 @@
                 pacienteRutInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); buscarPaciente(); } });
                 pacienteRutInput.addEventListener('input', () => { pacienteInput.value = ''; mostrarPaciente('Presiona Buscar.'); });
 
+                // ==========================================
+                // LÓGICA ESTRICTA AL AGREGAR PRODUCTO
+                // ==========================================
                 function agregarDesdeLista(prodId) {
                     const opcion = Array.from(productoSelect.options).find(o => o.value === prodId);
                     if (!opcion) return;
@@ -533,11 +574,14 @@
                     const precio = Number(opcion.dataset.precio);
                     const disponible = Number(opcion.dataset.disponible);
                     const cantidad = 1;
+                    const requiereReceta = opcion.dataset.requiereReceta === '1';
 
                     const existente = carrito.find(item => item.producto_id === prodId);
                     const cantidadTotal = cantidad + (existente?.cantidad ?? 0);
 
                     if (cantidadTotal > disponible) { alert('Stock insuficiente.'); return; }
+
+                    let itemIndex = existente ? carrito.indexOf(existente) : carrito.length;
 
                     if (existente) {
                         existente.cantidad = cantidadTotal;
@@ -547,24 +591,40 @@
                             nombre: opcion.dataset.nombre,
                             cantidad,
                             precio,
-                            requiere_receta: opcion.dataset.requiereReceta === '1',
+                            requiere_receta: requiereReceta,
                             tipo_receta: opcion.dataset.tipoReceta,
                             receta_detalle_id: null
                         });
                     }
+
+                    // Si requiere receta, forzamos el flujo
+                    if (requiereReceta) {
+                        const recetasValidas = recetasParaProducto(prodId, opcion.dataset.tipoReceta).filter(r => r.disponible >= carrito[itemIndex].cantidad);
+
+                        if (recetasValidas.length === 1) {
+                            // Si solo hay 1 receta, se asocia sola y el producto entra al carrito sin molestar.
+                            carrito[itemIndex].receta_detalle_id = recetasValidas[0].id;
+                        } else {
+                            // Si no hay o hay muchas, se abre el modal. El producto queda en el carrito bloqueado.
+                            renderCarrito();
+                            abrirModalReceta(itemIndex);
+                            return;
+                        }
+                    }
+
                     renderCarrito();
+                    searchInput.value = '';
+                    renderCatalog();
                 }
 
                 function procesarCodigoBarra() {
                     const codigo = searchInput.value.trim();
                     if (!codigo) return;
                     const opcion = Array.from(productoSelect.options).find(opt => String(opt.dataset.codigoBarra || '').trim() === codigo);
-                    
+
                     if (!opcion) { alert(`Código ${codigo} no encontrado.`); return; }
-                    
+
                     agregarDesdeLista(opcion.value);
-                    searchInput.value = '';
-                    renderCatalog();
                 }
 
                 function renderCarrito() {
@@ -594,7 +654,7 @@
                     carrito.forEach((item, index) => {
                         const recetaValida = item.requiere_receta && recetaValidaItem(item);
                         if (item.requiere_receta && !recetaValida) recetasValidas = false;
-                        
+
                         const estimacion = calcularEstimacion(item.producto_id, item.precio);
                         const subtotalNeto = estimacion.precioFinal * item.cantidad;
                         totalConIva += subtotalNeto * 1.19;
@@ -603,8 +663,12 @@
                             <div class="cart-row">
                                 <div class="ci-info">
                                     <div class="ci-name">${item.nombre}</div>
-                                    <div class="ci-price">$${Math.round(item.precio).toLocaleString('es-CL')} c/u 
-                                        ${item.requiere_receta ? `<span class="badge text-bg-${recetaValida ? 'success' : 'warning'}" style="font-size:0.65rem; cursor:pointer;" data-buscar-receta="${index}">${recetaValida ? 'OK Receta' : 'Falta Receta'}</span>` : ''}
+                                    <div class="ci-price">$${Math.round(item.precio).toLocaleString('es-CL')} c/u
+                                        ${item.requiere_receta ? `
+                                            <button type="button" class="btn btn-sm ${recetaValida ? 'btn-success' : 'btn-warning'} py-0 px-2" style="font-size:0.7rem; border-radius:4px; font-weight:600;" onclick="abrirModalReceta(${index})">
+                                                <i class="bi bi-file-medical"></i> ${recetaValida ? 'Receta OK' : 'Asociar Receta'}
+                                            </button>
+                                        ` : ''}
                                     </div>
                                 </div>
                                 <div class="ci-controls">
@@ -636,12 +700,18 @@
                     const opcion = Array.from(productoSelect.options).find(o => o.value === item.producto_id);
                     const max = Number(opcion.dataset.disponible);
                     const newQty = item.cantidad + delta;
-                    
+
                     if (newQty < 1) { removeFromCart(index); return; }
                     if (newQty > max) { alert('Límite de stock alcanzado'); return; }
-                    
+
                     item.cantidad = newQty;
+                    if (item.requiere_receta) item.receta_detalle_id = null; // Al cambiar cantidad, se invalida la receta
                     renderCarrito();
+
+                    // Si el producto requiere receta, forzamos la reasociación
+                    if (item.requiere_receta) {
+                         abrirModalReceta(index);
+                    }
                 }
 
                 function removeFromCart(index) {
@@ -657,6 +727,77 @@
                     renderCarrito();
                 }
 
+                // ==========================================
+                // LÓGICA ESTRICTA DEL MODAL DE RECETAS
+                // ==========================================
+                function abrirModalReceta(index) {
+                    if (!requerirPacienteRecetas()) {
+                        // Si no hay paciente, se quita el producto del carrito.
+                        carrito.splice(index, 1);
+                        renderCarrito();
+                        return;
+                    }
+
+                    indiceReceta = index;
+                    const item = carrito[index];
+                    if (!item?.requiere_receta) return;
+
+                    const recetasValidas = recetasParaProducto(item.producto_id, item.tipo_receta).filter(r => r.disponible >= item.cantidad);
+
+                    document.getElementById('modalRecetasTitulo').textContent = `Receta requerida para ${item.nombre}`;
+                    document.getElementById('modalRecetasAviso').innerHTML = `Paciente: <strong>${obtenerPacienteActual().nombre}</strong> · Cantidad requerida: ${item.cantidad}`;
+
+                    const registrar = document.getElementById('modalBtnRegistrar');
+                    if (registrar) registrar.href = urlRegistroReceta(item);
+
+                    const lista = document.getElementById('modalRecetasLista');
+                    lista.innerHTML = '';
+
+                    if (recetasValidas.length === 0) {
+                        lista.innerHTML = `<div class="col-12 text-center py-4 text-muted"><i class="bi bi-file-earmark-x fs-1 d-block mb-2"></i>No hay recetas válidas para este producto y cantidad.</div>`;
+                    } else {
+                        recetasValidas.forEach(r => {
+                            lista.insertAdjacentHTML('beforeend', `
+                                <div class="col-md-6">
+                                    <div class="tarjeta-receta p-3" onclick="asociarRecetaDesdeModal('${r.id}')">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="fw-bold mb-0 text-primary">#${r.numero}</h6>
+                                            <span class="badge bg-success">${r.disponible} disp.</span>
+                                        </div>
+                                        <p class="small text-muted mb-1">Emisión: ${r.emision}</p>
+                                        <p class="small text-muted mb-0">Vence: ${r.vencimiento}</p>
+                                    </div>
+                                </div>
+                            `);
+                        });
+                    }
+
+                    mostrarModalRecetas();
+                }
+
+                function asociarRecetaDesdeModal(recetaId) {
+                    const item = carrito[indiceReceta];
+                    item.receta_detalle_id = recetaId;
+                    cerrarModalRecetas();
+                    renderCarrito();
+                    // Enfocar el buscador nuevamente
+                    searchInput.focus();
+                }
+
+                function cancelarReceta() {
+                    // Si el usuario cancela, quitamos el producto del carrito para no bloquear la venta.
+                    if (indiceReceta !== null) {
+                        carrito.splice(indiceReceta, 1);
+                        indiceReceta = null;
+                    }
+                    cerrarModalRecetas();
+                    renderCarrito();
+                    searchInput.focus();
+                }
+
+                // ==========================================
+                // FUNCIONES ORIGINALES (Panel Derecho)
+                // ==========================================
                 function requerirPacienteRecetas() {
                     if (!obtenerPacienteActual()) {
                         recetasMensaje.textContent = 'Selecciona primero un paciente.';
@@ -674,15 +815,14 @@
                 function abrirRecetas(index = null) {
                     if (!requerirPacienteRecetas()) return;
                     document.getElementById('panel-recetas-detalle').classList.remove('d-none');
-                    
+
                     const pendiente = carrito.findIndex(item => item.requiere_receta && !recetaValidaItem(item));
-                    
-                    // Si no hay recetas pendientes por asociar, mostramos la lista del paciente
+
                     if (index === null && pendiente < 0) {
                         abrirRecetasPaciente();
                         return;
                     }
-                    
+
                     indiceReceta = index ?? pendiente;
                     const item = carrito[indiceReceta];
                     if (!item?.requiere_receta) return;
@@ -692,7 +832,7 @@
                     document.getElementById('receta-producto-aviso').textContent = recetas.length
                         ? `Paciente: ${obtenerPacienteActual().nombre}. Cantidad: ${item.cantidad}.`
                         : 'No existe una receta válida para este producto y cantidad.';
-                    
+
                     recetaProducto.replaceChildren(new Option(recetas.length ? 'Selecciona una receta' : 'Sin recetas válidas', ''));
                     recetas.forEach(r => recetaProducto.add(new Option(`#${r.numero} · disp ${r.disponible}`, String(r.id))));
                     recetaProducto.value = String(item.receta_detalle_id || (recetas.length === 1 ? recetas[0].id : ''));
@@ -705,31 +845,31 @@
                 }
 
                 function abrirRecetasPaciente() {
-                        if (!requerirPacienteRecetas()) return;
-                        if (!recetasPacientePanel) {
-                            recetasMensaje.textContent = 'No tienes permiso para consultar el módulo de recetas.';
-                            return;
-                        }
-                        recetasPacientePanel.hidden = false;
-                        verRecetasPaciente.setAttribute('aria-expanded', 'true');
-                        document.getElementById('recetas-paciente-titulo').focus();
+                    if (!requerirPacienteRecetas()) return;
+                    if (!recetasPacientePanel) {
+                        recetasMensaje.textContent = 'No tienes permiso para consultar el módulo de recetas.';
+                        return;
                     }
+                    recetasPacientePanel.hidden = false;
+                    verRecetasPaciente.setAttribute('aria-expanded', 'true');
+                    document.getElementById('recetas-paciente-titulo').focus();
+                }
 
-                    verRecetasPaciente?.addEventListener('click', () => {
-                        if (!requerirPacienteRecetas()) return;
-                        if (recetasPacientePanel.hidden) {
-                            abrirRecetasPaciente();
-                        } else {
-                            recetasPacientePanel.hidden = true;
-                            verRecetasPaciente.setAttribute('aria-expanded', 'false');
-                        }
-                    });
+                verRecetasPaciente?.addEventListener('click', () => {
+                    if (!requerirPacienteRecetas()) return;
+                    if (recetasPacientePanel.hidden) {
+                        abrirRecetasPaciente();
+                    } else {
+                        recetasPacientePanel.hidden = true;
+                        verRecetasPaciente.setAttribute('aria-expanded', 'false');
+                    }
+                });
 
                 function actualizarRecetasPaciente() {
                     const paciente = obtenerPacienteActual();
                     const recetas = recetasPaciente.filter(r => String(r.paciente_id) === pacienteInput.value);
                     document.getElementById('recetas-paciente').textContent = paciente ? `${paciente.nombre}` : 'Selecciona paciente.';
-                    
+
                     if (verRecetasPaciente) {
                         document.getElementById('recetas-acciones').classList.toggle('d-none', !paciente);
                     }
@@ -739,7 +879,7 @@
                         if (paciente) registrarBtn.href = urlRegistroReceta();
                         else registrarBtn.removeAttribute('href');
                     }
-                    
+
                     const lista = document.getElementById('recetas-paciente-lista');
                     lista.innerHTML = '';
                     recetas.forEach(receta => {
@@ -756,9 +896,9 @@
                     recetasResumen.textContent = conReceta.length
                         ? (conReceta.every(recetaValidaItem) ? 'Receta validada' : `${conReceta.filter(item => !recetaValidaItem(item)).length} requieren receta`)
                         : 'No requerida';
-                    
+
                     recetasResumen.className = conReceta.length && !conReceta.every(recetaValidaItem) ? 'prescription-desc text-warning fw-bold' : 'prescription-desc text-success fw-bold';
-                    
+
                     if (conReceta.length > 0 && conReceta.every(recetaValidaItem)) {
                         document.getElementById('presc-icon').style.background = 'var(--success-soft)';
                         document.getElementById('presc-icon').style.color = 'var(--success)';
@@ -807,7 +947,7 @@
                 });
                 recetaProducto.addEventListener('change', actualizarInformacionReceta);
                 document.getElementById('cerrar-busqueda-receta').addEventListener('click', () => { bloqueReceta.hidden = true; });
-                
+
                 asociarReceta.addEventListener('click', () => {
                     const item = carrito[indiceReceta];
                     const receta = recetasParaProducto(item.producto_id, item.tipo_receta).find(r => String(r.id) === recetaProducto.value);
@@ -832,8 +972,8 @@
                     const pendiente = carrito.find(item => item.requiere_receta && !recetaValidaItem(item));
                     if (pendiente) {
                         e.preventDefault();
-                        recetasMensaje.textContent = `Falta receta para ${pendiente.nombre}.`;
-                        abrirRecetas();
+                        // Forzamos la apertura del modal si intentan hacer submit sin recetas
+                        abrirModalReceta(carrito.indexOf(pendiente));
                     }
                 });
 

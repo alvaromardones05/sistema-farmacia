@@ -6,50 +6,21 @@ use App\Models\Lote;
 use App\Models\Producto;
 use App\Models\Stock;
 use App\Models\UbicacionAlmacen;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use App\Models\Categoria;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class InventoryStockCalculationTest extends TestCase
 {
+    use RefreshDatabase;
+
+    private Categoria $categoria;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        Schema::create('productos', function (Blueprint $table) {
-            $table->id();
-            $table->string('nombre');
-            $table->string('codigo_interno');
-            $table->boolean('activo')->default(true);
-            $table->integer('stock_minimo')->default(20);
-            $table->integer('stock_critico')->default(10);
-            $table->string('condicion_almacenamiento')->default('ambiente');
-            $table->softDeletes();
-            $table->timestamps();
-        });
-        Schema::create('ubicaciones_almacen', function (Blueprint $table) {
-            $table->id();
-            $table->string('nombre');
-            $table->string('tipo');
-            $table->boolean('activo')->default(true);
-            $table->timestamps();
-        });
-        Schema::create('lotes', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('producto_id');
-            $table->string('numero_lote');
-            $table->date('fecha_vencimiento');
-            $table->string('estado')->default('activo');
-            $table->timestamps();
-        });
-        Schema::create('stock', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('producto_id');
-            $table->foreignId('lote_id');
-            $table->foreignId('ubicacion_id');
-            $table->integer('cantidad');
-            $table->timestamps();
-        });
+        $this->categoria = Categoria::create(['nombre' => 'Prueba', 'activo' => true]);
     }
 
     public function test_stock_categories_and_critical_thresholds_are_distinct(): void
@@ -118,6 +89,9 @@ class InventoryStockCalculationTest extends TestCase
             'stock_minimo' => 20,
             'stock_critico' => 10,
             'condicion_almacenamiento' => $condicion,
+            'categoria_id' => $this->categoria->id,
+            'unidad_medida' => 'unidad',
+            'precio_base' => 1000,
         ]);
     }
 
@@ -137,6 +111,7 @@ class InventoryStockCalculationTest extends TestCase
             'numero_lote' => 'LOTE-' . uniqid('', true),
             'fecha_vencimiento' => $fechaVencimiento ?? today()->addYear(),
             'estado' => $estadoLote,
+            'cantidad_inicial' => $cantidad,
         ]);
 
         Stock::create([

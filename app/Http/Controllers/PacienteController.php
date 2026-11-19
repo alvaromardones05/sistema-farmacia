@@ -15,9 +15,9 @@ class PacienteController extends Controller
         $query->when($request->filled('buscar'), function ($q) use ($request) {
             $termino = $request->buscar;
             $q->where(function ($sub) use ($termino) {
-                $sub->where('rut', 'like', "%{$termino}%")
-                    ->orWhere('nombres', 'like', "%{$termino}%")
-                    ->orWhere('apellidos', 'like', "%{$termino}%");
+                $sub->where('rut', 'ilike', "%{$termino}%")
+                    ->orWhere('nombres', 'ilike', "%{$termino}%")
+                    ->orWhere('apellidos', 'ilike', "%{$termino}%");
             });
         });
 
