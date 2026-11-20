@@ -597,14 +597,7 @@ class VentaController extends Controller
             ->whereHas('stock', $stockVendible)
             ->with([
                 'precios' => function ($query) {
-                    $query
-                        ->whereDate('vigente_desde', '<=', today())
-                        ->where(function ($q) {
-                            $q
-                                ->whereNull('vigente_hasta')
-                                ->orWhereDate('vigente_hasta', '>=', today());
-                        })
-                        ->orderByDesc('vigente_desde');
+                    $query->paraVenta();
                 },
             ])
             ->withSum([
@@ -674,14 +667,7 @@ class VentaController extends Controller
             ->whereIn('id', $productoIds)
             ->with([
                 'precios' => function ($query) {
-                    $query
-                        ->whereDate('vigente_desde', '<=', today())
-                        ->where(function ($q) {
-                            $q
-                                ->whereNull('vigente_hasta')
-                                ->orWhereDate('vigente_hasta', '>=', today());
-                        })
-                        ->orderByDesc('vigente_desde');
+                    $query->paraVenta();
                 },
             ])
             ->get()

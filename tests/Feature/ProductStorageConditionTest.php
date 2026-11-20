@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Categoria;
+use App\Models\ListaPrecio;
 use App\Models\Producto;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,6 +27,12 @@ class ProductStorageConditionTest extends TestCase
         $this->categoria = Categoria::create([
             'nombre' => 'Categoría de prueba',
             'activo' => true,
+        ]);
+        ListaPrecio::create([
+            'nombre' => 'Lista Normal',
+            'tipo' => 'normal',
+            'vigente_desde' => today(),
+            'activa' => true,
         ]);
     }
 
