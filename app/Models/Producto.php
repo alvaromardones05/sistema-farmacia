@@ -29,7 +29,6 @@ class Producto extends Model
         'condicion_almacenamiento',
         'requiere_receta',
         'tipo_receta',
-        'es_controlado',
         'registro_isp',
         'stock_minimo',
         'stock_critico',

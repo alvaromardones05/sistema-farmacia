@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use App\Notifications\AvisoSistema;
 
 class RecetaController extends Controller
 {
@@ -117,6 +118,15 @@ class RecetaController extends Controller
             report($e);
             return back()->withInput()->withErrors(['receta' => 'No fue posible registrar la receta.']);
         }
+
+        AvisoSistema::paraQuimicos(
+            'Receta pendiente de revisión',
+            "Receta #{$receta->id} ({$receta->tipo}) con " . count($datos['detalles']) . ' medicamento(s) espera tu aprobación.',
+            route('recetas.show', $receta),
+            'bi-file-medical',
+            auth()->id() // si la registra un Químico, no se avisa a sí mismo
+        );
+
         return redirect()->route('recetas.show', $receta)->with('success', 'Receta registrada, pendiente de revisión.');
     }
 

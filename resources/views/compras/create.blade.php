@@ -224,149 +224,242 @@
 @endsection
 
 @section('scripts')
+@section('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    const producto = document.getElementById('producto');
-    const cantidad = document.getElementById('cantidad');
-    const precio = document.getElementById('precio');
-    const detalle = document.getElementById('detalleCompra');
-    const totalCompra = document.getElementById('totalCompra');
-    const form = document.getElementById('formCompra');
+    const producto     = document.getElementById('producto');
+    const cantidad     = document.getElementById('cantidad');
+    const precio       = document.getElementById('precio');
+    const detalle      = document.getElementById('detalleCompra');
+    const totalCompra  = document.getElementById('totalCompra');
+    const form         = document.getElementById('formCompra');
+    const btnAgregar   = document.getElementById('agregarProducto');
 
+    // Filas ya existentes por old() cuando falla la validación
+    const detallesExistentes = @json(old('detalles', []));
     let indice = 0;
 
-    document.getElementById('agregarProducto').addEventListener('click', function () {
+    // ============================================================
+    // HELPERS SEGUROS (sin innerHTML con datos de usuario)
+    // ============================================================
 
+    function crearFila(productoId, nombre, codigo, cant, prec) {
+        const idx = indice;
+
+        const fila = document.createElement('tr');
+        fila.dataset.productoId = productoId;
+        fila.dataset.subtotal   = cant * prec;
+
+        // Celda producto
+        const tdProducto = document.createElement('td');
+        const divNombre = document.createElement('div');
+        divNombre.className = 'fw-semibold';
+        divNombre.textContent = nombre;  // ← textContent, seguro
+        const divCodigo = document.createElement('div');
+        divCodigo.className = 'small text-muted';
+        divCodigo.textContent = codigo || '';
+
+        const inputProd = document.createElement('input');
+        inputProd.type = 'hidden';
+        inputProd.name = `detalles[${idx}][producto_id]`;
+        inputProd.value = productoId;
+
+        tdProducto.appendChild(divNombre);
+        tdProducto.appendChild(divCodigo);
+        tdProducto.appendChild(inputProd);
+
+        // Celda cantidad
+        const tdCantidad = document.createElement('td');
+        tdCantidad.className = 'text-end';
+        tdCantidad.textContent = cant;
+        const inputCant = document.createElement('input');
+        inputCant.type = 'hidden';
+        inputCant.name = `detalles[${idx}][cantidad_solicitada]`;
+        inputCant.value = cant;
+        tdCantidad.appendChild(inputCant);
+
+        // Celda precio
+        const tdPrecio = document.createElement('td');
+        tdPrecio.className = 'text-end';
+        tdPrecio.textContent = '$' + prec.toLocaleString('es-CL');
+        const inputPrec = document.createElement('input');
+        inputPrec.type = 'hidden';
+        inputPrec.name = `detalles[${idx}][precio_unitario]`;
+        inputPrec.value = prec;
+        tdPrecio.appendChild(inputPrec);
+
+        // Celda subtotal
+        const tdSubtotal = document.createElement('td');
+        tdSubtotal.className = 'text-end fw-semibold';
+        tdSubtotal.textContent = '$' + (cant * prec).toLocaleString('es-CL');
+
+        // Celda acciones
+        const tdAcciones = document.createElement('td');
+        tdAcciones.className = 'text-end';
+        const btnEliminar = document.createElement('button');
+        btnEliminar.type = 'button';
+        btnEliminar.className = 'btn btn-sm btn-outline-danger eliminar';
+        const icono = document.createElement('i');
+        icono.className = 'bi bi-trash';
+        btnEliminar.appendChild(icono);
+        tdAcciones.appendChild(btnEliminar);
+
+        fila.appendChild(tdProducto);
+        fila.appendChild(tdCantidad);
+        fila.appendChild(tdPrecio);
+        fila.appendChild(tdSubtotal);
+        fila.appendChild(tdAcciones);
+
+        indice++;
+        return fila;
+    }
+
+    function obtenerDatosProducto(productoId) {
+        const opt = Array.from(producto.options).find(o => o.value == productoId);
+        if (!opt) return null;
+        return { nombre: opt.dataset.nombre, codigo: opt.dataset.codigo || '' };
+    }
+
+    // ============================================================
+    // 5.1 — REPOBLAR FILAS SI FALLÓ LA VALIDACIÓN
+    // ============================================================
+
+    if (Array.isArray(detallesExistentes) && detallesExistentes.length > 0) {
+        document.getElementById('filaVacia')?.remove();
+
+        detallesExistentes.forEach(function (det) {
+            const datos = obtenerDatosProducto(det.producto_id);
+            if (!datos) return; // producto ya no existe
+
+            const cant = parseInt(det.cantidad_solicitada) || 1;
+            const prec = parseFloat(det.precio_unitario) || 0;
+            const fila = crearFila(det.producto_id, datos.nombre, datos.codigo, cant, prec);
+
+            detalle.appendChild(fila);
+        });
+
+        actualizarTotal();
+    }
+
+    // ============================================================
+    // AGREGAR PRODUCTO
+    // ============================================================
+
+    function agregarProducto() {
         if (!producto.value) {
             alert('Selecciona un producto.');
-            return;
+            producto.focus();
+            return false;
         }
 
         const cantidadValor = parseInt(cantidad.value);
-        const precioValor = parseFloat(precio.value);
+        const precioValor   = parseFloat(precio.value);
 
         if (!cantidadValor || cantidadValor < 1) {
             alert('Ingresa una cantidad válida.');
-            return;
+            cantidad.focus();
+            return false;
         }
 
         if (isNaN(precioValor) || precioValor < 0) {
             alert('Ingresa un precio válido.');
-            return;
+            precio.focus();
+            return false;
         }
 
         if (detalle.querySelector('[data-producto-id="' + producto.value + '"]')) {
             alert('Este producto ya fue agregado.');
-            return;
+            producto.focus();
+            return false;
         }
 
-        const opcion = producto.options[producto.selectedIndex];
+        const datos = obtenerDatosProducto(producto.value);
+        if (!datos) return false;
 
         document.getElementById('filaVacia')?.remove();
 
-        const fila = document.createElement('tr');
-
-        fila.dataset.productoId = producto.value;
-        fila.dataset.subtotal = cantidadValor * precioValor;
-
-        fila.innerHTML = `
-            <td>
-                <div class="fw-semibold">${opcion.dataset.nombre}</div>
-                <div class="small text-muted">${opcion.dataset.codigo || ''}</div>
-
-                <input
-                    type="hidden"
-                    name="detalles[${indice}][producto_id]"
-                    value="${producto.value}"
-                >
-            </td>
-
-            <td class="text-end">
-                ${cantidadValor}
-
-                <input
-                    type="hidden"
-                    name="detalles[${indice}][cantidad_solicitada]"
-                    value="${cantidadValor}"
-                >
-            </td>
-
-            <td class="text-end">
-                $${precioValor.toLocaleString('es-CL')}
-
-                <input
-                    type="hidden"
-                    name="detalles[${indice}][precio_unitario]"
-                    value="${precioValor}"
-                >
-            </td>
-
-            <td class="text-end fw-semibold">
-                $${(cantidadValor * precioValor).toLocaleString('es-CL')}
-            </td>
-
-            <td class="text-end">
-                <button
-                    type="button"
-                    class="btn btn-sm btn-outline-danger eliminar"
-                >
-                    <i class="bi bi-trash"></i>
-                </button>
-            </td>
-        `;
-
+        const fila = crearFila(producto.value, datos.nombre, datos.codigo, cantidadValor, precioValor);
         detalle.appendChild(fila);
-
-        indice++;
 
         producto.value = '';
         cantidad.value = 1;
         precio.value = '';
 
         actualizarTotal();
+        producto.focus(); // ← 5.5: vuelve al buscador
+        return true;
+    }
+
+    btnAgregar.addEventListener('click', agregarProducto);
+
+    // ============================================================
+    // 5.5 — FLUJO CON TECLADO
+    // ============================================================
+
+    producto.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            cantidad.focus();
+            cantidad.select();
+        }
     });
 
+    cantidad.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            precio.focus();
+            precio.select();
+        }
+    });
+
+    precio.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            agregarProducto();
+        }
+    });
+
+    // ============================================================
+    // ELIMINAR Y TOTAL
+    // ============================================================
+
     detalle.addEventListener('click', function (event) {
-
         const boton = event.target.closest('.eliminar');
-
         if (!boton) return;
 
         boton.closest('tr').remove();
 
-        if (!detalle.querySelector('tr')) {
-            detalle.innerHTML = `
-                <tr id="filaVacia">
-                    <td colspan="5" class="text-center py-4 text-muted">
-                        No has agregado productos.
-                    </td>
-                </tr>
-            `;
+        if (!detalle.querySelector('tr[data-producto-id]')) {
+            const filaVacia = document.createElement('tr');
+            filaVacia.id = 'filaVacia';
+            const td = document.createElement('td');
+            td.colSpan = 5;
+            td.className = 'text-center py-4 text-muted';
+            td.textContent = 'No has agregado productos.';
+            filaVacia.appendChild(td);
+            detalle.appendChild(filaVacia);
         }
 
         actualizarTotal();
     });
 
-    form.addEventListener('submit', function (event) {
+    function actualizarTotal() {
+        let total = 0;
+        detalle.querySelectorAll('tr[data-producto-id]').forEach(function (fila) {
+            total += parseFloat(fila.dataset.subtotal) || 0;
+        });
+        totalCompra.textContent = '$' + total.toLocaleString('es-CL');
+    }
 
-        if (!detalle.querySelector('[data-producto-id]')) {
+    form.addEventListener('submit', function (event) {
+        if (!detalle.querySelector('tr[data-producto-id]')) {
             event.preventDefault();
             alert('Debes agregar al menos un producto.');
         }
     });
 
-    function actualizarTotal() {
-
-        let total = 0;
-
-        detalle.querySelectorAll('[data-producto-id]').forEach(function (fila) {
-            total += parseFloat(fila.dataset.subtotal);
-        });
-
-        totalCompra.textContent = '$' + total.toLocaleString('es-CL');
-    }
-
 });
 </script>
+@endsection
 @endsection

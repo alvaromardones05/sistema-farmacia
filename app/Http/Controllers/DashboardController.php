@@ -10,6 +10,8 @@ use App\Models\Receta; // Asegúrate de importar tu modelo de Recetas
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
 use App\Models\VentaDetalle;
+use App\Models\Canje;
+use Illuminate\Http\JsonResponse;
 
 class DashboardController extends Controller
 {
@@ -101,13 +103,7 @@ class DashboardController extends Controller
         }
 
         if ($puedeVerInventario) {
-            $stockPorProducto = Producto::queryStockUtilizablePorProducto();
-
-            $criticos = Producto::activos()
-                ->leftJoinSub($stockPorProducto, 'existencias', function ($join) {
-                    $join->on('productos.id', '=', 'existencias.producto_id');
-                })
-                ->whereRaw('COALESCE(existencias.stock_utilizable, 0) <= productos.stock_critico');
+            $criticos = $this->queryCriticos();
 
             $metricas['stock_critico'] = (clone $criticos)->count();
             $productosCriticos = (clone $criticos)
@@ -119,12 +115,7 @@ class DashboardController extends Controller
                 ->limit(5)
                 ->get();
 
-            $porVencer = Lote::query()
-                ->where('estado', 'activo')
-                ->whereBetween('fecha_vencimiento', [$hoy->toDateString(), $hasta->toDateString()])
-                ->whereHas('stock', fn($query) => $query
-                    ->enUbicacionesComerciales()
-                    ->where('cantidad', '>', 0));
+            $porVencer = $this->queryPorVencer();
 
             $metricas['lotes_por_vencer'] = (clone $porVencer)->count();
             $lotesPorVencer = (clone $porVencer)
@@ -164,6 +155,10 @@ class DashboardController extends Controller
             $metricas['recetas_pendientes'] = Receta::where('estado', 'pendiente')->count();
         }
 
+        $esQuimico = $usuario->hasRole('Químico Farmacéutico');
+        $puedeVerCanjes = $puedeVerInventario || $esQuimico;
+        $metricas['canjes'] = $puedeVerCanjes ? $this->contarCanjes($esQuimico) : null;
+
         return view('dashboard', compact(
             'metricas',
             'productosCriticos',
@@ -177,7 +172,75 @@ class DashboardController extends Controller
             'chartStockLabels',
             'chartStockData',
             'topProductosLabels',  // <-- AGREGAR
-            'topProductosData'     // <-- AGREGAR
+            'topProductosData',     // <-- AGREGAR
+            'puedeVerCanjes',
+            'esQuimico'
         ));
+    }
+
+    private function queryCriticos()
+    {
+        return Producto::activos()
+            ->leftJoinSub(Producto::queryStockUtilizablePorProducto(), 'existencias', function ($join) {
+                $join->on('productos.id', '=', 'existencias.producto_id');
+            })
+            ->whereRaw('COALESCE(existencias.stock_utilizable, 0) <= productos.stock_critico');
+    }
+
+    private function queryPorVencer()
+    {
+        return Lote::query()
+            ->where('estado', 'activo')
+            ->whereBetween('fecha_vencimiento', [today()->toDateString(), today()->addDays(30)->toDateString()])
+            ->whereHas('stock', fn($query) => $query
+                ->enUbicacionesComerciales()
+                ->where('cantidad', '>', 0));
+    }
+
+    private function contarCanjes(bool $esQuimico): int
+    {
+        return Canje::whereIn('estado', $esQuimico ? ['pendiente'] : ['aprobado', 'en_proceso'])->count();
+    }
+
+    public function kpis(): JsonResponse
+    {
+        $usuario = auth()->user();
+        $esQuimico = $usuario->hasRole('Químico Farmacéutico');
+        $puedeVerInventario = $usuario->can('ver_stock');
+        $puedeVerVentas = $usuario->hasAnyRole(['Químico Farmacéutico', 'Técnico Farmacéutico'])
+            || $usuario->can('ver_reportes_globales');
+        $hoy = today();
+
+        $datos = ['actualizado' => now()->format('H:i')];
+
+        if ($puedeVerVentas) {
+            $ventasHoy = Venta::where('estado', 'completada')
+                ->where('fecha_venta', '>=', $hoy)
+                ->where('fecha_venta', '<', $hoy->copy()->addDay())
+                ->selectRaw('COUNT(*) as cantidad, COALESCE(SUM(total), 0) as total')
+                ->first();
+
+            $datos['cantidad_ventas'] = (int) $ventasHoy->cantidad;
+            $datos['total_ventas'] = (float) $ventasHoy->total;
+            $datos['ventas_mes'] = (float) Venta::where('estado', 'completada')
+                ->whereBetween('fecha_venta', [$hoy->copy()->startOfMonth(), $hoy->copy()->endOfMonth()])
+                ->sum('total');
+        }
+
+        if ($puedeVerInventario) {
+            $datos['stock_critico'] = $this->queryCriticos()->count();
+            $datos['lotes_por_vencer'] = $this->queryPorVencer()->count();
+        }
+
+        if ($esQuimico) {
+            $datos['descuadres_pendientes'] = DescuadreStockControlado::pendientes()->count();
+            $datos['recetas_pendientes'] = Receta::where('estado', 'pendiente')->count();
+        }
+
+        if ($puedeVerInventario || $esQuimico) {
+            $datos['canjes'] = $this->contarCanjes($esQuimico);
+        }
+
+        return response()->json($datos);
     }
 }

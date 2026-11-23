@@ -1,0 +1,55 @@
+=== Prueba de carga y concurrencia ===
+Fecha:        19-11-2026 12:11:57
+Servidor:     http://127.0.0.1:8000
+Lecturas:     300 peticiones, concurrencia 20
+Ventas:       20 peticiones simultaneas de 1 unidad (producto 1)
+
+Login correcto.
+
+=== PARTE 1: carga de lectura ===
+--- GET /dashboard ---
+Failed requests:        0
+Requests per second:    27.88 [#/sec] (mean)
+Time per request:       717.279 [ms] (mean)
+Time per request:       35.864 [ms] (mean, across all concurrent requests)
+  50%    716
+  95%    729
+  99%    731
+ 100%    731 (longest request)
+
+--- GET /inventario ---
+Failed requests:        0
+Requests per second:    26.36 [#/sec] (mean)
+Time per request:       758.628 [ms] (mean)
+Time per request:       37.931 [ms] (mean, across all concurrent requests)
+  50%    758
+  95%    773
+  99%    779
+ 100%    782 (longest request)
+
+--- GET /ventas ---
+Failed requests:        0
+Requests per second:    44.29 [#/sec] (mean)
+Time per request:       451.544 [ms] (mean)
+Time per request:       22.577 [ms] (mean, across all concurrent requests)
+  50%    451
+  95%    461
+  99%    463
+ 100%    464 (longest request)
+
+=== PARTE 2: concurrencia de ventas sobre el ultimo stock ===
+Peticiones enviadas:                 20
+Ventas aceptadas (redirigen a boleta): 5
+Ventas rechazadas:                   15
+Inicio de la prueba:                 2026-11-19 12:12:26
+
+VERIFICACION EN LA BASE DE DATOS (psql -h 127.0.0.1 -U farmacia -d farmacia):
+  SELECT COALESCE(SUM(cantidad),0) AS stock_restante FROM stock WHERE producto_id = 1;
+  SELECT COUNT(*) AS ventas_creadas FROM ventas WHERE created_at >= '2026-11-19 12:12:26';
+
+RESULTADO ESPERADO:
+  - ventas_creadas = ventas aceptadas, y nunca mayor que el stock inicial.
+  - stock_restante = stock inicial - ventas aceptadas, y nunca negativo.
+  - Si el stock inicial era menor que 20, el resto debe quedar rechazado.
+
+Evidencia guardada en evidencia_carga_20261119_121157.txt

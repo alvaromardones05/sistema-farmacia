@@ -51,12 +51,21 @@ class OrdenCompraController extends Controller
         $validated = $request->validate([
             'proveedor_id' => 'required|exists:proveedores,id',
             'fecha_entrega_esperada' => 'nullable|date',
-            'observaciones' => 'nullable|string',
+            'observaciones' => 'nullable|string|max:2000',
 
             'detalles' => 'required|array|min:1',
-            'detalles.*.producto_id' => 'required|exists:productos,id',
-            'detalles.*.cantidad_solicitada' => 'required|integer|min:1',
-            'detalles.*.precio_unitario' => 'required|numeric|min:0',
+            'detalles.*.producto_id' => 'required|exists:productos,id|distinct',
+            'detalles.*.cantidad_solicitada' => 'required|integer|min:1|max:100000',
+            'detalles.*.precio_unitario' => 'required|numeric|min:0|max:99999999',
+        ], [
+            'detalles.required' => 'Debes agregar al menos un producto.',
+            'detalles.min' => 'Debes agregar al menos un producto.',
+            'detalles.*.producto_id.distinct' => 'No puedes agregar el mismo producto dos veces.',
+            'detalles.*.producto_id.exists' => 'Uno de los productos seleccionados no existe.',
+            'detalles.*.cantidad_solicitada.min' => 'La cantidad debe ser mayor a cero.',
+            'detalles.*.cantidad_solicitada.max' => 'La cantidad es demasiado grande.',
+            'detalles.*.precio_unitario.min' => 'El precio no puede ser negativo.',
+            'detalles.*.precio_unitario.max' => 'El precio es demasiado grande.',
         ]);
 
         $proveedor = Proveedor::findOrFail($validated['proveedor_id']);

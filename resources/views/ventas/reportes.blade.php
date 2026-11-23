@@ -11,7 +11,7 @@
             <p class="text-muted mb-0">Resumen de transacciones completadas</p>
         </div>
         <div class="d-flex gap-2">
-            <a href="{{ route('ventas.reportes.exportar', ['periodo' => $periodo]) }}" class="btn btn-success">
+            <a href="{{ route('ventas.reportes.exportar', ['periodo' => $periodo]) }}" class="btn btn-primary">
                 <i class="bi bi-file-earmark-excel me-1"></i> Exportar a Excel
             </a>
             <a href="{{ route('ventas.index') }}" class="btn btn-outline-secondary">Volver</a>

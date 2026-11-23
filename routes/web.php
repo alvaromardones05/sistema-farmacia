@@ -18,6 +18,7 @@ use App\Http\Controllers\DescuadreStockControladoController;
 use App\Http\Controllers\ConvenioController;
 use App\Http\Controllers\RecetaController;
 use App\Http\Controllers\MedicoController;
+use App\Http\Controllers\NotificacionController;
 
 
 // Página principal
@@ -54,6 +55,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Todos los usuarios autenticados pueden acceder
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
+
+    //Noificaciones dashbard
+    Route::get('/dashboard/kpis', [DashboardController::class, 'kpis'])->name('dashboard.kpis');
+    Route::get('/notificaciones', [NotificacionController::class, 'index'])->name('notificaciones.index');
+    Route::get('/notificaciones/{id}/abrir', [NotificacionController::class, 'abrir'])->name('notificaciones.abrir');
+    Route::post('/notificaciones/leer-todas', [NotificacionController::class, 'leerTodas'])->name('notificaciones.leer-todas');
 
 
     // =================================================

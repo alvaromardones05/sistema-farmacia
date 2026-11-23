@@ -385,10 +385,12 @@ class CanjeFlowTest extends TestCase
     ): void
     {
         $datos = [
-            'cantidad' => $cantidad,
-            'numero_lote' => $numeroLote,
-            'fecha_fabricacion' => today()->subMonth()->toDateString(),
-            'fecha_vencimiento' => today()->addYear()->toDateString(),
+            'lotes' => [[
+                'numero_lote' => $numeroLote,
+                'cantidad' => $cantidad,
+                'fecha_fabricacion' => today()->subMonth()->toDateString(),
+                'fecha_vencimiento' => today()->addYear()->toDateString(),
+            ]],
             'proveedor_id' => $proveedor->id,
             'numero_documento' => $documento ?? 'RECEPCION-' . $numeroLote,
             'idempotency_token' => (string) Str::uuid(),
@@ -402,7 +404,7 @@ class CanjeFlowTest extends TestCase
             $datos['idempotency_token'] = (string) Str::uuid();
             $this->actingAs($this->quimico)
                 ->post(route('inventario.canjes.reposiciones.store', $canje), $datos)
-                ->assertSessionHasErrors('numero_documento');
+                ->assertSessionHasErrors('lotes.0.numero_documento');
         }
     }
 }

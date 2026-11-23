@@ -516,7 +516,7 @@ class InventarioController extends Controller
                     'success',
                     'Ajuste de stock realizado correctamente.'
                 );
-                
+
         } catch (\Throwable $e) {
             return back()
                 ->withInput()
@@ -583,51 +583,61 @@ class InventarioController extends Controller
 
         // ===================== ALERTAS DE STOCK =====================
 
-    public function alertas()
-    {
-        $stockUtilizable = Producto::queryStockUtilizablePorProducto();
+        public function alertas(Request $request)
+        {
+            // NUEVO: ventana de vencimiento configurable (30, 60 o 90 días)
+            $diasPermitidos = [30, 60, 90];
+            $diasVencimiento = (int) $request->get('dias', 30);
+            if (!in_array($diasVencimiento, $diasPermitidos, true)) {
+                $diasVencimiento = 30;
+            }
 
-        $productos = Producto::activos()
-            ->leftJoinSub($stockUtilizable, 'existencias_utilizables', function ($join) {
-                $join->on('productos.id', '=', 'existencias_utilizables.producto_id');
-            })
-            ->select('productos.*')
-            ->selectRaw('COALESCE(existencias_utilizables.stock_utilizable, 0) as stock_utilizable')
-            ->get();
+            $stockUtilizable = Producto::queryStockUtilizablePorProducto();
 
-        $stockCritico = $productos->filter(
-            fn($p) => (int) $p->stock_utilizable <= $p->stock_critico
-        );
+            $productos = Producto::activos()
+                ->leftJoinSub($stockUtilizable, 'existencias_utilizables', function ($join) {
+                    $join->on('productos.id', '=', 'existencias_utilizables.producto_id');
+                })
+                ->select('productos.*')
+                ->selectRaw('COALESCE(existencias_utilizables.stock_utilizable, 0) as stock_utilizable')
+                ->get();
 
-        $stockBajo = $productos->filter(
-            fn($p) => (int) $p->stock_utilizable > $p->stock_critico
-                && (int) $p->stock_utilizable <= $p->stock_minimo
-        );
+            $stockCritico = $productos->filter(
+                fn($p) => (int) $p->stock_utilizable <= $p->stock_critico
+            );
 
-        // Las alertas comerciales excluyen cantidades en cuarentena y canje.
-        $lotesConStock = Lote::where('estado', 'activo')
-            ->with('producto')
-            ->whereHas('stock', fn($query) => $query
-                ->enUbicacionesComerciales()
-                ->where('cantidad', '>', 0))
-            ->withSum(['stock as stock_comercial' => fn($query) => $query->enUbicacionesComerciales()], 'cantidad')
-            ->get();
+            $stockBajo = $productos->filter(
+                fn($p) => (int) $p->stock_utilizable > $p->stock_critico
+                    && (int) $p->stock_utilizable <= $p->stock_minimo
+            );
 
-        $porVencer = $lotesConStock->filter(
-            fn($l) => $l->fecha_vencimiento->between(today(), today()->addDays(30))
-        );
+            // Las alertas comerciales excluyen cantidades en cuarentena y canje.
+            $lotesConStock = Lote::where('estado', 'activo')
+                ->with('producto')
+                ->whereHas('stock', fn($query) => $query
+                    ->enUbicacionesComerciales()
+                    ->where('cantidad', '>', 0))
+                ->withSum(['stock as stock_comercial' => fn($query) => $query->enUbicacionesComerciales()], 'cantidad')
+                ->get();
 
-        $vencidos = $lotesConStock->filter(
-            fn($l) => $l->fecha_vencimiento->lt(today())
-        );
+            // MODIFICADO: usa la ventana configurable en lugar del 30 hardcodeado
+            $porVencer = $lotesConStock->filter(
+                fn($l) => $l->fecha_vencimiento->between(today(), today()->addDays($diasVencimiento))
+            );
 
-        return view('inventario.alertas', compact(
-            'stockCritico',
-            'stockBajo',
-            'porVencer',
-            'vencidos'
-        ));
-    }
+            $vencidos = $lotesConStock->filter(
+                fn($l) => $l->fecha_vencimiento->lt(today())
+            );
+
+            return view('inventario.alertas', compact(
+                'stockCritico',
+                'stockBajo',
+                'porVencer',
+                'vencidos',
+                'diasVencimiento',  // NUEVO
+                'diasPermitidos'    // NUEVO
+            ));
+        }
 
 
         // ===================== HISTORIAL DE MOVIMIENTOS (KARDEX) =====================

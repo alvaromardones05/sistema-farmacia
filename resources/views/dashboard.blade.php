@@ -107,7 +107,7 @@ table.simple-table { width: 100%; border-collapse: collapse; }
     <header class="page-header">
         <div>
             <h1>Resumen general</h1>
-            <p class="subtitle">Última actualización: {{ now()->format('H:i') }}</p>
+            <p class="subtitle">Última actualización: <span data-kpi="actualizado">{{ now()->format('H:i') }}</span></p>
         </div>
         <div class="header-actions">
             @role('Administrador')
@@ -125,8 +125,8 @@ table.simple-table { width: 100%; border-collapse: collapse; }
                 <span class="kpi-label">Ventas hoy</span>
                 <div class="kpi-icon" style="background:var(--success-soft);color:var(--success);"><i class="bi bi-cash-coin"></i></div>
             </div>
-            <div class="kpi-value">${{ number_format($metricas['total_ventas'], 0, ',', '.') }}</div>
-            <span style="font-size: .75rem; color: var(--text-muted);">{{ $metricas['cantidad_ventas'] }} ventas completadas</span>
+            <div class="kpi-value">$<span data-kpi="total_ventas" data-money>{{ number_format($metricas['total_ventas'], 0, ',', '.') }}</span></div>
+            <span style="font-size: .75rem; color: var(--text-muted);"><span data-kpi="cantidad_ventas">{{ $metricas['cantidad_ventas'] }}</span> ventas completadas</span>
         </a>
 
         <a class="kpi" href="{{ $puedeAccederVentas ? route('ventas.index') : '#' }}">
@@ -134,7 +134,7 @@ table.simple-table { width: 100%; border-collapse: collapse; }
                 <span class="kpi-label">Ventas del mes</span>
                 <div class="kpi-icon" style="background:var(--primary-soft);color:var(--primary);"><i class="bi bi-graph-up-arrow"></i></div>
             </div>
-            <div class="kpi-value">${{ number_format($metricas['ventas_mes'] ?? 0, 0, ',', '.') }}</div>
+            <div class="kpi-value">$<span data-kpi="ventas_mes" data-money>{{ number_format($metricas['ventas_mes'] ?? 0, 0, ',', '.') }}</span></div>
             <span style="font-size: .75rem; color: var(--text-muted);">Mes en curso</span>
         </a>
         @endif
@@ -145,7 +145,7 @@ table.simple-table { width: 100%; border-collapse: collapse; }
                 <span class="kpi-label">Stock crítico</span>
                 <div class="kpi-icon" style="background:var(--danger-soft);color:var(--danger);"><i class="bi bi-exclamation-triangle"></i></div>
             </div>
-            <div class="kpi-value" style="color:var(--danger);">{{ $metricas['stock_critico'] }}<small>productos</small></div>
+            <div class="kpi-value" style="color:var(--danger);"><span data-kpi="stock_critico">{{ $metricas['stock_critico'] }}</span><small>productos</small></div>
             <span style="font-size: .75rem; color: var(--text-muted);">Requieren reposición</span>
         </a>
 
@@ -154,7 +154,7 @@ table.simple-table { width: 100%; border-collapse: collapse; }
                 <span class="kpi-label">Próximos a vencer</span>
                 <div class="kpi-icon" style="background:var(--warning-soft);color:var(--warning);"><i class="bi bi-calendar-x"></i></div>
             </div>
-            <div class="kpi-value" style="color:var(--warning);">{{ $metricas['lotes_por_vencer'] }}<small>lotes</small></div>
+            <div class="kpi-value" style="color:var(--warning);"><span data-kpi="lotes_por_vencer">{{ $metricas['lotes_por_vencer'] }}</span><small>lotes</small></div>
             <span style="font-size: .75rem; color: var(--text-muted);">En los próximos 30 días</span>
         </a>
         @endif
@@ -165,7 +165,7 @@ table.simple-table { width: 100%; border-collapse: collapse; }
                 <span class="kpi-label">Descuadres</span>
                 <div class="kpi-icon" style="background:var(--info-soft);color:var(--info);"><i class="bi bi-clipboard-check"></i></div>
             </div>
-            <div class="kpi-value">{{ $metricas['descuadres_pendientes'] }}<small>pendientes</small></div>
+            <div class="kpi-value"><span data-kpi="descuadres_pendientes">{{ $metricas['descuadres_pendientes'] }}</span><small>pendientes</small></div>
             <span style="font-size: .75rem; color: var(--text-muted);">Requieren revisión</span>
         </a>
         @endif
@@ -176,10 +176,21 @@ table.simple-table { width: 100%; border-collapse: collapse; }
                 <span class="kpi-label">Recetas pendientes</span>
                 <div class="kpi-icon" style="background:var(--violet-soft);color:var(--violet);"><i class="bi bi-file-medical"></i></div>
             </div>
-            <div class="kpi-value">{{ $metricas['recetas_pendientes'] ?? 0 }}<small>controlados</small></div>
+            <div class="kpi-value"><span data-kpi="recetas_pendientes">{{ $metricas['recetas_pendientes'] ?? 0 }}</span><small>controlados</small></div>
             <span style="font-size: .75rem; color: var(--text-muted);">Requieren aprobación</span>
         </a>
         @endrole
+
+        @if ($puedeVerCanjes)
+        <a class="kpi" href="{{ route('inventario.canjes.index', ['estado' => $esQuimico ? 'pendiente' : 'activos']) }}">
+            <div class="kpi-head">
+                <span class="kpi-label">{{ $esQuimico ? 'Canjes por autorizar' : 'Canjes en curso' }}</span>
+                <div class="kpi-icon" style="background:var(--primary-soft);color:var(--primary);"><i class="bi bi-arrow-repeat"></i></div>
+            </div>
+            <div class="kpi-value"><span data-kpi="canjes">{{ $metricas['canjes'] }}</span><small>{{ $esQuimico ? 'solicitudes' : 'canjes' }}</small></div>
+            <span style="font-size: .75rem; color: var(--text-muted);">{{ $esQuimico ? 'Esperan tu autorización' : 'Con pasos por completar' }}</span>
+        </a>
+        @endif
     </div>
 
     <div class="main-grid">
@@ -420,6 +431,36 @@ table.simple-table { width: 100%; border-collapse: collapse; }
                     }
                 }
             }
+        });
+    })();
+
+    (function () {
+        const urlKpis = @json(route('dashboard.kpis'));
+        const INTERVALO = 30000; // 30 segundos
+
+        async function actualizarKpis() {
+            if (document.hidden) return;
+            try {
+                const respuesta = await fetch(urlKpis, {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                if (!respuesta.ok) return;
+                const datos = await respuesta.json();
+
+                document.querySelectorAll('[data-kpi]').forEach(function (el) {
+                    const valor = datos[el.dataset.kpi];
+                    if (valor === null || valor === undefined) return;
+                    el.textContent = el.hasAttribute('data-money')
+                        ? Number(valor).toLocaleString('es-CL', { maximumFractionDigits: 0 })
+                        : valor;
+                });
+            } catch (e) { /* sin conexión: reintenta en el próximo ciclo */ }
+        }
+
+        setInterval(actualizarKpis, INTERVALO);
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) actualizarKpis();
         });
     })();
 </script>

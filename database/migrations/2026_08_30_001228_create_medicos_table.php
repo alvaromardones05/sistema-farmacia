@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('apellidos', 100);
             $table->string('registro_profesional', 100)->nullable();
             $table->string('especialidad', 100)->nullable();
-            $table->string('telefo no', 20)->nullable();
+            $table->string('telefono', 20)->nullable();
             $table->string('email', 150)->nullable();
             $table->string('consultorio', 255)->nullable();
             $table->boolean('activo')->default(true);

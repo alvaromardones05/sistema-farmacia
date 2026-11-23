@@ -59,12 +59,17 @@
     ====================================================== -->
 
     <nav class="navbar navbar-dark navbar-farmacia">
+
         <div class="container-fluid">
 
             <a href="{{ route('dashboard') }}" class="navbar-brand fw-bold">
                 <i class="bi bi-capsule"></i>
                 Sistema de Farmacia
             </a>
+
+            <li class="nav-item d-flex align-items-center me-2">
+                @include('partials.campana-notificaciones')
+            </li>
 
             <button type="button" class="btn-theme" id="themeToggle" aria-label="Cambiar tema">
                 <i class="bi bi-moon-stars" id="themeIcon"></i>

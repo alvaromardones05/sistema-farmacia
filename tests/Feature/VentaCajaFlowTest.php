@@ -323,4 +323,72 @@ class VentaCajaFlowTest extends TestCase
         $this->assertSame(0, Venta::count());
         $this->assertSame(5, $this->stockActual());
     }
+
+    // ------------------------------------------------------------ ANULACIÓN Y REDONDEO
+
+    public function test_anular_venta_devuelve_el_stock_y_registra_el_reembolso(): void
+    {
+        $apertura = $this->abrirCajaDirecto();
+        $this->actingAs($this->cajero)
+            ->post(route('ventas.store'), $this->datosVenta(2))
+            ->assertSessionHasNoErrors();
+        $venta = Venta::firstOrFail();
+        $this->assertSame(3, $this->stockActual());
+
+        $this->actingAs($this->cajero)
+            ->post(route('ventas.anular', $venta), ['motivo' => 'Error de digitación'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('anulada', $venta->fresh()->estado);
+        $this->assertSame(5, $this->stockActual());
+        $this->assertSame(1, MovimientoCaja::where('apertura_caja_id', $apertura->id)
+            ->where('tipo', 'reembolso')->count());
+    }
+
+    public function test_anular_exige_motivo(): void
+    {
+        $this->abrirCajaDirecto();
+        $this->actingAs($this->cajero)->post(route('ventas.store'), $this->datosVenta(2));
+        $venta = Venta::firstOrFail();
+
+        $this->actingAs($this->cajero)
+            ->post(route('ventas.anular', $venta), [])
+            ->assertSessionHasErrors('motivo');
+
+        $this->assertSame('completada', $venta->fresh()->estado);
+        $this->assertSame(3, $this->stockActual());
+    }
+
+    public function test_anular_dos_veces_no_devuelve_el_stock_dos_veces(): void
+    {
+        $this->abrirCajaDirecto();
+        $this->actingAs($this->cajero)->post(route('ventas.store'), $this->datosVenta(2));
+        $venta = Venta::firstOrFail();
+
+        $this->actingAs($this->cajero)
+            ->post(route('ventas.anular', $venta), ['motivo' => 'Primera anulación']);
+        $this->actingAs($this->cajero)
+            ->post(route('ventas.anular', $venta), ['motivo' => 'Segunda anulación'])
+            ->assertSessionHasErrors('venta');
+
+        $this->assertSame(5, $this->stockActual());
+        $this->assertSame(1, MovimientoCaja::where('tipo', 'reembolso')->count());
+    }
+
+    public function test_venta_con_precio_neto_fraccionario_se_registra_sin_error(): void
+    {
+        // Así queda el precio neto de un producto creado con precio de venta 1000:
+        // 1000 / 1.19 = 840.34 (ver ProductoController@store).
+        ProductoPrecio::where('producto_id', $this->producto->id)
+            ->update(['precio_neto' => 840.34, 'precio_venta' => 1000]);
+        $this->abrirCajaDirecto();
+
+        $this->actingAs($this->cajero)
+            ->post(route('ventas.store'), $this->datosVenta(3))
+            ->assertSessionHasNoErrors();
+
+        $venta = Venta::firstOrFail();
+        $this->assertEqualsWithDelta(3000.0, (float) $venta->total, 0.05);
+        $this->assertSame(2, $this->stockActual());
+    }
 }

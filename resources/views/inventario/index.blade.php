@@ -410,7 +410,7 @@
 
                                 @can('gestionar_stock')
                                     @if(in_array($ubicacionActual->tipo, ['bodega', 'frigorifica', 'vitrina', 'vitrina_refrigerada'], true))
-                                    
+
                                     <button type="button"
                                             class="btn btn-sm btn-outline-success"
                                             onclick="openTraslado(this)"
@@ -426,7 +426,16 @@
                                         <i class="bi bi-arrow-left-right me-1"></i> Trasladar
                                     </button>
 
-                                    <button type="button" 
+                                    <button type="button" class="btn btn-sm btn-outline-success"
+                                            onclick="openAjuste(this)"
+                                            data-producto-id="{{ $s->producto_id }}"
+                                            data-ubicacion-id="{{ $ubicacionActual->id }}"
+                                            data-producto-nombre="{{ $s->producto?->nombre }}"
+                                            data-producto-codigo="{{ $s->producto?->codigo_interno }}">
+                                        <i class="bi bi-sliders me-1"></i> Ajustar
+                                    </button>
+
+                                    <button type="button"
                                             class="btn btn-sm btn-outline-warning"
                                             onclick="openNoApto(this)"
                                             data-producto-id="{{ $s->producto_id }}"
@@ -476,6 +485,7 @@
 </div>
 
 @include('inventario._modal-traslado')
+@include('inventario._modal-ajuste')
 @include('inventario._modal-no-apto')
 
 @endsection

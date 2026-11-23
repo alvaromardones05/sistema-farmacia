@@ -83,7 +83,7 @@ class DatabaseSeeder extends Seeder
             'ver_stock',
             'gestionar_convenios',
             'gestionar_pacientes',
-            
+
         ]);
 
 
@@ -105,14 +105,15 @@ class DatabaseSeeder extends Seeder
             CategoriasSeeder::class,
             LaboratoriosSeeder::class,
             ProductosSeeder::class,
+            LotesStockSeeder::class,
             ProveedoresSeeder::class,
             ConveniosSeeder::class,
             CajaSeeder::class,
             PrecioSeeder::class,
         ]);
-   
+
     }
 
 
-    
+
 }

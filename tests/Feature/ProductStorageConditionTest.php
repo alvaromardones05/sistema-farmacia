@@ -8,6 +8,8 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
+use App\Models\ListaPrecio;
+use App\Models\ProductoPrecio;
 
 class ProductStorageConditionTest extends TestCase
 {
@@ -26,6 +28,13 @@ class ProductStorageConditionTest extends TestCase
         $this->categoria = Categoria::create([
             'nombre' => 'Categoría de prueba',
             'activo' => true,
+        ]);
+
+        ListaPrecio::create([
+            'nombre' => 'Lista Normal',
+            'tipo' => 'normal',
+            'vigente_desde' => today()->subDay(),
+            'activa' => true,
         ]);
     }
 
@@ -60,6 +69,7 @@ class ProductStorageConditionTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $producto = Producto::where('codigo_interno', 'FRIO-TEST-01')->firstOrFail();
+        $this->assertSame(1, ProductoPrecio::where('producto_id', $producto->id)->count());
         $this->assertSame('refrigerado', $producto->condicion_almacenamiento);
 
         $this->actingAs($this->tecnico)

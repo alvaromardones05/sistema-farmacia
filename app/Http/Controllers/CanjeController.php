@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use App\Notifications\AvisoSistema;
 
 class CanjeController extends Controller
 {
@@ -163,6 +164,17 @@ class CanjeController extends Controller
             return back()->withInput()->withErrors(['canje' => 'No se pudo registrar la solicitud. No se modificó el stock.']);
         }
 
+        if ($canje->wasRecentlyCreated) {
+            $canje->loadMissing('producto');
+            AvisoSistema::paraQuimicos(
+                'Nueva solicitud de canje',
+                "Canje #{$canje->id}: {$canje->producto->nombre}, {$canje->cantidad_solicitada} unidades. Espera tu autorización.",
+                route('inventario.canjes.show', $canje),
+                'bi-arrow-repeat',
+                auth()->id() // el solicitante no recibe el aviso, porque no puede autorizar su propia solicitud
+            );
+        }
+
         return redirect()->route('inventario.canjes.show', $canje)
             ->with('success', 'Solicitud de canje registrada. El stock no se descontará hasta su aprobación.');
     }
@@ -289,6 +301,14 @@ class CanjeController extends Controller
             return back()->withErrors(['canje' => 'No se pudo aprobar el canje. No se confirmó ningún movimiento.']);
         }
 
+        AvisoSistema::para(
+            $canje->solicitante,
+            'Canje aprobado',
+            "Tu solicitud #{$canje->id} fue aprobada. Las unidades pasaron a la zona de Canje.",
+            route('inventario.canjes.show', $canje),
+            'bi-check-circle'
+        );
+
         return back()->with('success', 'Solicitud aprobada y trasladada a la ubicación Canje.');
     }
 
@@ -313,6 +333,14 @@ class CanjeController extends Controller
                 'motivo_decision' => $validated['motivo_decision'],
             ]);
         });
+
+        AvisoSistema::para(
+            $canje->solicitante,
+            'Canje rechazado',
+            "Tu solicitud #{$canje->id} fue rechazada: {$validated['motivo_decision']}",
+            route('inventario.canjes.show', $canje),
+            'bi-x-circle'
+        );
 
         return back()->with('success', 'Solicitud rechazada. El stock no fue modificado.');
     }
