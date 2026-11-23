@@ -10,8 +10,8 @@ use App\Models\Categoria;
 use App\Models\Laboratorio;
 use App\Models\AlertaStock;
 use App\Models\ListaPrecio;
-use App\Models\ProductoPrecio;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 
 class ProductoController extends Controller
@@ -115,35 +115,12 @@ class ProductoController extends Controller
             'registro_isp' => 'nullable|string',
             'stock_minimo' => 'required|integer|min:0',
             'stock_critico' => 'required|integer|min:0',
-            'precio_base' => 'required|numeric|min:1',
+            'precio_base' => 'required|integer|min:1',
         ]);
 
         DB::transaction(function () use ($validated) {
-
             $producto = Producto::create($validated);
-
-            $lista = ListaPrecio::where('nombre', 'Lista Normal')
-                ->where('activa', true)
-                ->firstOrFail();
-
-            $impuestoPct = 19;
-
-            $precioVenta = (float) $validated['precio_base'];
-
-            $precioNeto = round(
-                $precioVenta / (1 + $impuestoPct / 100),
-                2
-            );
-
-            ProductoPrecio::create([
-                'producto_id' => $producto->id,
-                'lista_precio_id' => $lista->id,
-                'precio_neto' => $precioNeto,
-                'impuesto_pct' => $impuestoPct,
-                'precio_venta' => $precioVenta,
-                'vigente_desde' => today(),
-                'vigente_hasta' => null,
-            ]);
+            $this->guardarPrecioNormal($producto);
         });
 
         return redirect()
@@ -205,13 +182,59 @@ class ProductoController extends Controller
             'es_controlado' => 'boolean',
             'stock_minimo' => 'required|integer|min:0',
             'stock_critico' => 'required|integer|min:0',
-            'precio_base' => 'required|numeric|min:0',
+            'precio_base' => 'required|integer|min:0',
         ]);
 
-        $producto->update($validated);
+        DB::transaction(function () use ($producto, $validated) {
+            $producto = Producto::query()->lockForUpdate()->findOrFail($producto->id);
+            $producto->update($validated);
+            $this->guardarPrecioNormal($producto);
+        }, 3);
 
         return redirect()->route('productos.show', $producto)
             ->with('success', 'Producto actualizado');
+    }
+
+    private function guardarPrecioNormal(Producto $producto): void
+    {
+        $lista = ListaPrecio::activas()->where('nombre', 'Lista Normal')->first();
+
+        if (!$lista) {
+            throw ValidationException::withMessages([
+                'precio_base' => 'No hay una Lista Normal activa para guardar el precio de venta.',
+            ]);
+        }
+
+        $hoy = today();
+        $precios = $producto->precios()->where('lista_precio_id', $lista->id);
+        $vigente = (clone $precios)->vigentes()->latest('vigente_desde')->latest('id')->first();
+        $precioVenta = (float) $producto->precio_base;
+
+        if ($vigente && (float) $vigente->precio_venta === $precioVenta) {
+            return;
+        }
+
+        $impuestoPct = 19;
+        $importes = [
+            'precio_neto' => round($precioVenta / (1 + $impuestoPct / 100), 2),
+            'impuesto_pct' => $impuestoPct,
+            'precio_venta' => $precioVenta,
+        ];
+
+        // Las vigencias se guardan por día, así que las ediciones de hoy comparten una fila.
+        if ($vigente?->vigente_desde->isSameDay($hoy)) {
+            $vigente->update($importes);
+
+            return;
+        }
+
+        $precios->vigentes()->update(['vigente_hasta' => $hoy->copy()->subDay()]);
+
+        $producto->precios()->create($importes + [
+            'lista_precio_id' => $lista->id,
+            'vigente_desde' => $hoy,
+            'vigente_hasta' => $vigente?->vigente_hasta,
+        ]);
     }
 
     // ===================== ELIMINAR =====================

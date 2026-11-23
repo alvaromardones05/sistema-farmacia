@@ -239,6 +239,37 @@ class VentaCajaFlowTest extends TestCase
         $this->assertSame(1, MovimientoCaja::where('apertura_caja_id', $apertura->id)->where('tipo', 'venta')->count());
     }
 
+    public function test_editar_precio_actualiza_las_ventas_nuevas_y_conserva_el_historial(): void
+    {
+        $this->abrirCajaDirecto();
+        $precioAnterior = $this->producto->precios()->firstOrFail();
+        $datos = $this->producto->only([
+            'nombre', 'categoria_id', 'unidad_medida', 'condicion_almacenamiento',
+            'stock_minimo', 'stock_critico',
+        ]) + ['tipo_receta' => 'ninguna'];
+
+        $this->actingAs($this->cajero)
+            ->post(route('ventas.store'), $this->datosVenta(1))
+            ->assertSessionHasNoErrors();
+        $ventaAnterior = Venta::firstOrFail();
+
+        foreach ([2380, 3570, 3570] as $precio) {
+            $this->put(route('productos.update', $this->producto), $datos + ['precio_base' => $precio])
+                ->assertRedirect(route('productos.show', $this->producto))
+                ->assertSessionHasNoErrors();
+        }
+
+        $this->post(route('ventas.store'), $this->datosVenta(1))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(3570, (int) $this->producto->fresh()->precio_base);
+        $this->assertSame(2, $this->producto->precios()->count());
+        $this->assertSame('1190.00', $precioAnterior->fresh()->precio_venta);
+        $this->assertTrue($precioAnterior->fresh()->vigente_hasta->isSameDay(today()->subDay()));
+        $this->assertEquals(1190, $ventaAnterior->fresh()->total);
+        $this->assertEquals(3570, Venta::latest('id')->firstOrFail()->total);
+    }
+
     public function test_venta_sin_caja_abierta_es_rechazada_y_no_cambia_stock(): void
     {
         $this->actingAs($this->cajero)

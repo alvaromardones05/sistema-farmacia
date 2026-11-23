@@ -49,4 +49,17 @@ class ProductoPrecio extends Model
                     ->orWhereDate('vigente_hasta', '>=', now());
             });
     }
+
+    public function scopeParaVenta($query)
+    {
+        $listaNormal = ListaPrecio::activas()
+            ->selectRaw('1')
+            ->where('nombre', 'Lista Normal')
+            ->whereColumn('listas_precios.id', 'producto_precios.lista_precio_id');
+
+        return $query->vigentes()
+            ->orderByRaw('CASE WHEN EXISTS ('.$listaNormal->toSql().') THEN 0 ELSE 1 END', $listaNormal->getBindings())
+            ->latest('vigente_desde')
+            ->latest('id');
+    }
 }
