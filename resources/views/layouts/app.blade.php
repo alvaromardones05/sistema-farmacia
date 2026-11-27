@@ -43,13 +43,27 @@
 
 
     <script>
-    (function() {
-        var savedTheme = localStorage.getItem('theme')
-            || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-        document.documentElement.setAttribute('data-bs-theme', savedTheme);
-    })();
-</script>
+        (function() {
+            // 1. Prevenir transiciones mientras se pinta la pantalla por primera vez
+            document.documentElement.classList.add('preload');
 
+            // 2. Aplicar Tema
+            var savedTheme = localStorage.getItem('theme')
+                || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+
+            // 3. Aplicar estado del Sidebar (Evita que el contenido salte)
+            if (localStorage.getItem('sidebar') === 'collapsed') {
+                document.documentElement.classList.add('sidebar-collapsed');
+            }
+
+            // 4. Preparar apertura automática si el mouse estaba sobre el sidebar
+            if (sessionStorage.getItem('sidebar_hover') === 'true') {
+                document.documentElement.classList.add('sidebar-peek-init');
+            }
+        })();
+    </script>
+@stack('styles')
 </head>
 
 @stack('scripts')
@@ -61,6 +75,11 @@
     <nav class="navbar navbar-dark navbar-farmacia">
 
         <div class="container-fluid">
+
+            <button type="button" class="btn-sidebar-toggle d-none d-lg-inline-flex"
+                    id="sidebarToggle" aria-controls="menuLateral" aria-expanded="true">
+                <i class="bi bi-layout-sidebar" id="sidebarIcon"></i>
+            </button>
 
             <a href="{{ route('dashboard') }}" class="navbar-brand fw-bold">
                 <i class="bi bi-capsule"></i>
@@ -140,7 +159,9 @@
              MENÚ LATERAL
         ================================================== -->
 
-        <aside class="sidebar p-3">
+        <div class="sidebar-hotzone" id="sidebarHotzone"></div>
+
+        <aside class="sidebar p-3" id="menuLateral">
 
             <nav class="nav flex-column">
 
@@ -335,6 +356,13 @@
     </script>
 
     <style>
+    /* =====================================================
+       PRELOAD (Evita el salto y las animaciones al cargar)
+       ====================================================== */
+    .preload *, .preload *::before, .preload *::after {
+        transition: none !important;
+        animation: none !important;
+    }
     /* =====================================================
     DESIGN TOKENS
     ====================================================== */
@@ -767,7 +795,11 @@
         z-index: 5;
     }
 
-
+    html.sidebar-collapsed.sidebar-peek-init .sidebar {
+        transform: translateX(0) !important;
+        visibility: visible !important;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15) !important;
+    }
 
     .sidebar > * { position: relative; z-index: 1; }
 
@@ -1384,6 +1416,85 @@
         font-size: 0.95rem;
         margin-bottom: 1.9rem;
     }
+
+    /* =====================================================
+       PRELOAD (Evita el salto al cargar la página)
+       ====================================================== */
+    .preload *, .preload *::before, .preload *::after {
+        transition: none !important;
+        animation: none !important;
+    }
+
+    /* =====================================================
+       SIDEBAR OCULTABLE (estilo Claude)
+       ====================================================== */
+    .btn-sidebar-toggle {
+        width: 44px;
+        height: 44px;
+        border: none;
+        border-radius: 12px;
+        background: transparent;
+        color: var(--text-muted);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35rem;
+        cursor: pointer;
+        transition: var(--t);
+        padding: 0;
+        flex-shrink: 0;
+    }
+
+    .btn-sidebar-toggle:hover {
+        background: var(--surface-3);
+        color: var(--text);
+    }
+
+    #sidebarIcon { transition: transform 0.3s ease; }
+    html.sidebar-collapsed #sidebarIcon { transform: rotate(180deg); }
+
+    @media (min-width: 992px) {
+        /* Sidebar oculto (se desliza) */
+        html.sidebar-collapsed .sidebar {
+            position: fixed;
+            top: var(--topbar-height);
+            left: 0;
+            height: calc(100vh - var(--topbar-height));
+            z-index: 1020;
+            transform: translateX(-100%);
+            visibility: hidden;
+            box-shadow: none;
+            transition:
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                visibility 0s linear 0.3s,
+                box-shadow 0.3s,
+                background 0.4s;
+        }
+
+        /* Sidebar visible por Hover (is-peek) */
+        html.sidebar-collapsed .sidebar.is-peek {
+            transform: translateX(0);
+            visibility: visible;
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+            transition:
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                visibility 0s linear 0s,
+                box-shadow 0.3s,
+                background 0.4s;
+        }
+
+        /* Sidebar visible al recargar la página (sidebar-peek-init del head) */
+        html.sidebar-collapsed.sidebar-peek-init .sidebar {
+            transform: translateX(0);
+            visibility: visible;
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+        }
+
+        [data-bs-theme="dark"] html.sidebar-collapsed .sidebar.is-peek,
+        [data-bs-theme="dark"] html.sidebar-collapsed.sidebar-peek-init .sidebar {
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+        }
+    }
     </style>
 
 
@@ -1413,6 +1524,83 @@
                     icon.className = next === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
                 }
             });
+        })();
+
+        // ===== SIDEBAR OCULTABLE (COMPORTAMIENTO CLAUDE EXACTO) =====
+        (function () {
+            const root    = document.documentElement;
+            const sidebar = document.getElementById('menuLateral');
+            const btn     = document.getElementById('sidebarToggle');
+            const icon    = document.getElementById('sidebarIcon');
+
+            if (!sidebar || !btn) return;
+
+            let timer = null;
+
+            function abrir() {
+                clearTimeout(timer);
+                if (root.classList.contains('sidebar-collapsed')) {
+                    sidebar.classList.add('is-peek');
+                }
+                sessionStorage.setItem('sidebar_hover', 'true');
+            }
+
+            function cerrar() {
+                clearTimeout(timer);
+                timer = setTimeout(function () {
+                    sidebar.classList.remove('is-peek');
+                    sessionStorage.setItem('sidebar_hover', 'false');
+                }, 400);
+            }
+
+            btn.addEventListener('mouseenter', abrir);
+            btn.addEventListener('mouseleave', cerrar);
+            sidebar.addEventListener('mouseenter', abrir);
+            sidebar.addEventListener('mouseleave', cerrar);
+
+            function actualizarBoton() {
+                const colapsado = root.classList.contains('sidebar-collapsed');
+                btn.setAttribute('aria-expanded', String(!colapsado));
+                btn.title = colapsado ? 'Fijar menú' : 'Ocultar menú';
+                if (icon) {
+                    icon.className = colapsado ? 'bi bi-list' : 'bi bi-layout-sidebar';
+                }
+            }
+
+            btn.addEventListener('click', function () {
+                const colapsado = root.classList.toggle('sidebar-collapsed');
+                if (!colapsado) {
+                    sidebar.classList.remove('is-peek');
+                    sessionStorage.setItem('sidebar_hover', 'false');
+                }
+                try { localStorage.setItem('sidebar', colapsado ? 'collapsed' : 'open'); } catch (e) {}
+                actualizarBoton();
+            });
+
+            // --- INICIALIZACIÓN ---
+
+            // 1. Pasar la clase del <head> al sidebar real y limpiar el <head>
+            if (root.classList.contains('sidebar-peek-init')) {
+                sidebar.classList.add('is-peek');
+                root.classList.remove('sidebar-peek-init');
+            }
+
+            actualizarBoton();
+
+            // 2. Respaldo si el mouse está sobre el botón al recargar
+            setTimeout(() => {
+                if (root.classList.contains('sidebar-collapsed') && btn.matches(':hover')) {
+                    sidebar.classList.add('is-peek');
+                    sessionStorage.setItem('sidebar_hover', 'true');
+                }
+            }, 100);
+
+            // 3. QUITAR EL BLOQUEO DE ANIMACIONES DE INMEDIATO
+            // Usamos un setTimeout fijo en lugar de window.load para evitar que un recurso lento deje la página "congelada".
+            setTimeout(function() {
+                root.classList.remove('preload');
+            }, 100);
+
         })();
     </script>
 

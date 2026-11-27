@@ -85,8 +85,8 @@
     }
 
 
-   
-    
+
+
 
     /* =========================================================
        ALERTAS
@@ -115,7 +115,7 @@
        RESPONSIVE
        ========================================================= */
 
-    
+
 
     /* =========================================================
    TARJETAS DE RESUMEN — mejoradas
@@ -270,6 +270,57 @@
     padding: 0.35em 0.75em;
     border-radius: 0.45rem;
     min-width: 70px;
+}
+
+
+/* =====================================================
+   EVITAR SALTOS DE DISEÑO (LAYOUT SHIFT)
+   ====================================================== */
+
+/* 1. Evitar que los iconos empujen el texto cuando carga la fuente */
+.bi::before {
+    display: inline-block;
+    width: 1em;
+    text-align: center;
+}
+
+/* 2. Fijar altura mínima de la tabla para que el paginador no salte */
+.table-responsive {
+    min-height: 450px; /* Ajusta este valor según el alto de tu tabla */
+}
+
+/* 3. Fijar altura de las tarjetas KPI para que no salten */
+.tarjeta-resumen {
+    min-height: 100px;
+}
+
+/* 4. Fijar altura de los tabs de ubicación */
+.nav-tabs {
+    min-height: 42px;
+}
+
+.tabla-stock {
+    width: 100%;
+}
+
+.pagination svg {
+    width: 16px !important;
+    height: 16px !important;
+}
+
+.cantidad-valor,
+.tabla-stock td {
+    font-variant-numeric: tabular-nums;
+}
+
+/* 4. Animación de aparición suave en lugar de salto brusco */
+.inventario-modulo {
+    animation: fadeInInventario 0.3s ease-in-out;
+}
+
+@keyframes fadeInInventario {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 

@@ -49,7 +49,7 @@ class RecepcionMercaderiaController extends Controller
         return view('compras.recepciones.create', compact('orden', 'ubicacionesAlmacenamiento'));
     }
 
-    public function store(Request $request, OrdenCompra $orden)
+public function store(Request $request, OrdenCompra $orden)
 {
     if (!$orden->puedeRecibirMercaderia()) {
         return redirect()
@@ -59,6 +59,22 @@ class RecepcionMercaderiaController extends Controller
                     'Esta orden ya fue recibida, no tiene cantidades pendientes o tiene una recepción pendiente de revisión.'
             ]);
     }
+
+    $request->merge(['detalles' => collect($request->input('detalles', []))
+        ->map(function ($detalle) {
+            if (!is_array($detalle) || !is_array($detalle['lotes'] ?? null)) {
+                return $detalle;
+            }
+            $detalle['lotes'] = collect($detalle['lotes'])->map(function ($lote) {
+                foreach (['cantidad_recibida', 'cantidad_rechazada'] as $campo) {
+                    if (isset($lote[$campo]) && is_string($lote[$campo]) && preg_match('/^\s*\d+\s*$/', $lote[$campo])) {
+                        $lote[$campo] = (int) trim($lote[$campo]);
+                    }
+                }
+                return $lote;
+            })->all();
+            return $detalle;
+        })->all()]);
 
     $validated = $request->validate([
         'numero_comprobante' => 'nullable|string|max:100',
@@ -82,7 +98,7 @@ class RecepcionMercaderiaController extends Controller
 
         'detalles.*.lotes.*.fecha_vencimiento' =>
             'nullable|date|after_or_equal:today',
- 
+
         'detalles.*.lotes.*.observacion' =>
             'nullable|string|max:1000',
     ]);
@@ -156,6 +172,13 @@ class RecepcionMercaderiaController extends Controller
                         );
 
                     if ($cantidadRecibida <= 0) {
+                        if (
+                            trim((string) ($datosLote['numero_lote'] ?? '')) !== ''
+                            || !empty($datosLote['fecha_fabricacion'])
+                            || !empty($datosLote['fecha_vencimiento'])
+                        ) {
+                            throw new \DomainException('Hay un lote con datos pero sin cantidad recibida. Indica la cantidad o elimina la fila.');
+                        }
                         continue;
                     }
 
@@ -837,11 +860,11 @@ class RecepcionMercaderiaController extends Controller
         public function guia(RecepcionMercaderia $recepcion)
         {
             $recepcion->load(['ordenCompra.proveedor', 'detalles.producto', 'detalles.ordenCompraDetalle']);
-            
+
             $pdf = Pdf::loadView('pdf.guia_despacho', compact('recepcion'));
-            
+
             return $pdf->download("Guia_Despacho_{$recepcion->ordenCompra->numero_orden}.pdf");
         }
 
-        
+
 }

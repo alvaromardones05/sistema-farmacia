@@ -32,21 +32,61 @@
         --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
     }
 
-    .pos-container { background: var(--bg); font-family: 'Inter', system-ui, sans-serif; font-size: 16px; color: var(--text); margin: -1.5rem; padding: 1.5rem; min-height: calc(100vh - 60px); display: flex; flex-direction: column;}
+    /* 1. FIJAMOS LA ALTURA DEL CONTENEDOR PRINCIPAL PARA QUE NO SE ESTIRE */
+    .pos-container {
+        background: var(--bg);
+        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 16px;
+        color: var(--text);
+        margin: -1.5rem;
+        padding: 1.5rem;
+        height: 100vh; /* Antes era min-height */
+        max-height: 100vh;
+        overflow: hidden; /* Evita que la página entera scrollee */
+        display: flex;
+        flex-direction: column;
+    }
 
-    .pos-layout { display: grid; grid-template-columns: 1fr 460px; gap: 1.5rem; flex: 1; overflow: hidden; }
+    .pos-layout {
+        display: grid;
+        grid-template-columns: 1fr 460px;
+        gap: 1.5rem;
+        flex: 1;
+        height: 100%;
+        overflow: hidden;
+    }
     .left-col { display: flex; flex-direction: column; gap: 1.5rem; height: 100%; overflow: hidden; }
     .right-col { display: flex; flex-direction: column; gap: 1.25rem; height: 100%; }
 
     /* Paneles Izquierda */
-    .products-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow: hidden; }
+    .products-panel {
+        flex: 1;
+        min-height: 0; /* Crucial para que flexbox permita el scroll interno */
+        display: flex;
+        flex-direction: column;
+        background: var(--surface);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
     .search-area { padding: 1.25rem 1.25rem 0.75rem; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 1rem; }
     .search-bar { position: relative; }
     .search-bar i { position: absolute; left: 1.25rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.3rem; }
     .search-bar input { width: 100%; padding: 1rem 1rem 1rem 3.25rem; font-size: 1.05rem; border: 1.5px solid var(--border-strong); border-radius: var(--radius); background: var(--bg); transition: all 0.15s; font-family: inherit; font-weight: 500; }
     .search-bar input:focus { outline: none; border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 4px var(--primary-soft); }
 
-    .product-list { flex: 1; overflow-y: auto; padding-bottom: 1rem; }
+    /* 2. LISTA DE PRODUCTOS CON SCROLL INTERNO */
+    .product-list {
+        flex: 1;
+        overflow-y: auto; /* Aquí está la magia: scrollea solo esta caja */
+        padding-bottom: 1rem;
+    }
+    /* Opcional: Estilo para la barra de scroll */
+    .product-list::-webkit-scrollbar { width: 6px; }
+    .product-list::-webkit-scrollbar-track { background: transparent; }
+    .product-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
     .product-row { display: flex; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
     .product-row:hover { background: var(--bg); }
     .prod-main { flex: 1; display: flex; align-items: center; gap: 1rem; }
@@ -250,6 +290,15 @@
                             <input type="hidden" name="paciente_id" id="paciente_id" value="{{ $pacienteSeleccionado?->id }}">
                         </div>
 
+                        <div class="card-pos" id="descuentos-tarjeta">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="bi bi-percent text-success"></i>
+                                <span class="fw-bold">Descuentos</span>
+                            </div>
+                            <div id="descuentos-lista" class="small"></div>
+                            <input type="hidden" name="aplicar_convenio" id="aplicar_convenio" value="0">
+                        </div>
+
                         <!-- Panel original de recetas mantenido intacto -->
                         <div class="card-pos" id="recetas-tarjeta" @can('gestionar_recetas') data-registro-url="{{ route('recetas.create') }}" @endcan>
                             <div class="prescription-box">
@@ -295,8 +344,16 @@
                         <div class="card-pos checkout-panel">
                             <div>
                                 <div class="totals-row">
-                                    <span>Subtotal</span>
+                                    <span>Subtotal (precio lista)</span>
                                     <span id="totSubtotal">$0</span>
+                                </div>
+                                <div class="totals-row d-none" id="rowDescuento">
+                                    <span id="lblDescuento">Descuento</span>
+                                    <span id="totDescuento" class="text-success">-$0</span>
+                                </div>
+                                <div class="totals-row">
+                                    <span>IVA 19%</span>
+                                    <span id="totIva">$0</span>
                                 </div>
                                 <div class="totals-row total">
                                     <span>Total</span>
@@ -352,19 +409,18 @@
                             <button type="submit" class="btn-checkout" id="btn-confirmar" disabled>
                                 <i class="bi bi-check-circle-fill"></i> Confirmar venta
                             </button>
+                            <small id="hint-confirmar" class="text-muted d-block text-center mt-2"></small>
                         </div>
                     </aside>
                 </div>
             </form>
 
             {{-- NUEVO MODAL DE RECETAS (BLOQUEANTE) --}}
-            <!-- data-bs-backdrop="static" y data-bs-keyboard="false" evitan que se cierre al hacer clic afuera -->
             <div class="modal fade" id="modalRecetas" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
                 <div class="modal-dialog modal-dialog-centered modal-lg">
                     <div class="modal-content" style="border-radius: var(--radius-lg); border: none; box-shadow: var(--shadow-lg);">
                         <div class="modal-header border-0 pb-0">
                             <h5 class="modal-title fw-bold" id="modalRecetasTitulo">Seleccionar Receta</h5>
-                            <!-- Sin botón de cerrar (X) para forzar la acción -->
                         </div>
                         <div class="modal-body">
                             <p class="text-muted mb-4" id="modalRecetasAviso"></p>
@@ -412,6 +468,9 @@
                 let indiceReceta = null;
                 let pacienteRecetas = pacienteInput.value;
                 let selectedPaymentMethod = null;
+                let productoPendiente = null;
+                let convenioAplicado = false;
+                const fmt = n => '$' + Math.round(n).toLocaleString('es-CL');
 
                 const carritoItems = document.getElementById('cartItems');
                 const emptyCart = document.getElementById('emptyCart');
@@ -419,8 +478,11 @@
                 const btnConfirmar = document.getElementById('btn-confirmar');
                 const totalAproximado = document.getElementById('total-aproximado');
                 const totSubtotal = document.getElementById('totSubtotal');
+                const rowDescuento = document.getElementById('rowDescuento');
+                const lblDescuento = document.getElementById('lblDescuento');
+                const totDescuento = document.getElementById('totDescuento');
+                const totIva = document.getElementById('totIva');
 
-                // Instanciar el modal de forma segura
                 function mostrarModalRecetas() {
                     const el = document.getElementById('modalRecetas');
                     let modal = bootstrap.Modal.getInstance(el);
@@ -446,6 +508,12 @@
                     if (item) url.searchParams.set('producto_id', item.producto_id);
                     url.searchParams.set('origen', 'venta');
                     return url.toString();
+                }
+
+                function esc(texto) {
+                    const div = document.createElement('div');
+                    div.textContent = texto ?? '';
+                    return div.innerHTML;
                 }
 
                 function renderCatalog() {
@@ -474,10 +542,10 @@
                                 <div class="prod-meta">${opt.dataset.codigoBarra || 'S/C'}</div>
                             </div>
                             <div class="prod-price-col">
-                                <div class="prod-price">$${Number(opt.dataset.precio).toLocaleString('es-CL')}</div>
+                                <div class="prod-price">$${Number(opt.dataset.precio).toLocaleString('es-CL')} <small class="text-muted fw-normal">+IVA</small></div>
                                 <div class="prod-stock ${isLow ? 'low' : ''}">Stock: ${opt.dataset.disponible}</div>
                             </div>
-                            <button class="btn-add-row"><i class="bi bi-plus-lg"></i></button>
+                            <button type="button" class="btn-add-row"><i class="bi bi-plus-lg"></i></button>
                         </div>
                         `;
                     }).join('');
@@ -495,13 +563,17 @@
                 function recetaDeItem(item) { return recetasParaProducto(item.producto_id, item.tipo_receta).find(r => String(r.id) === String(item.receta_detalle_id)); }
                 function recetaValidaItem(item) { const receta = recetaDeItem(item); return !!receta && item.cantidad <= receta.disponible; }
 
-                function obtenerConvenioActual() {
+                function obtenerConvenioDisponible() {
                     const paciente = obtenerPacienteActual();
                     return paciente?.convenio_id ? convenios[paciente.convenio_id] ?? null : null;
                 }
 
+                function obtenerConvenioActual() {
+                    return convenioAplicado ? obtenerConvenioDisponible() : null;
+                }
+
                 function calcularEstimacion(productoId, precio) {
-                    const convenio = obtenerConvenioActual();
+                    const convenio = obtenerConvenioDisponible();
                     if (!convenio) return { precioFinal: precio, texto: 'Sin convenio' };
 
                     const cobertura = convenio.coberturas[String(productoId)] ?? null;
@@ -519,9 +591,10 @@
 
                 function mostrarPaciente(mensaje = 'Venta libre') {
                     const paciente = obtenerPacienteActual();
-                    const convenio = obtenerConvenioActual();
+                    const convenio = obtenerConvenioDisponible();
 
                     if (pacienteRecetas !== pacienteInput.value) {
+                        convenioAplicado = false;
                         if (recetasPacientePanel) recetasPacientePanel.hidden = true;
                         const teniaRecetas = carrito.some(item => item.receta_detalle_id);
                         carrito.forEach(item => { item.receta_detalle_id = null; });
@@ -534,7 +607,8 @@
                         pacienteResultado.textContent = `RUT: ${paciente.rut}`;
                         if (convenio) {
                             convenioActual.style.display = 'inline-flex';
-                            convenioActual.innerHTML = `<i class="bi bi-tag-fill"></i> ${convenio.nombre}`;
+                            const pct = Number(convenio.descuento_pct ?? 0);
+                            convenioActual.innerHTML = `<i class="bi bi-tag-fill"></i> ${esc(convenio.nombre)}${pct > 0 ? ` · ${pct}% desc.` : ''}`;
                         } else {
                             convenioActual.style.display = 'none';
                         }
@@ -545,7 +619,61 @@
                     }
 
                     actualizarRecetasPaciente();
+                    renderDescuentos();
                     renderCarrito();
+                }
+
+                function toggleConvenio() {
+                    convenioAplicado = !convenioAplicado;
+                    mostrarPaciente();
+                }
+
+                function renderDescuentos() {
+                    const lista    = document.getElementById('descuentos-lista');
+                    const paciente = obtenerPacienteActual();
+                    const convenio = obtenerConvenioActual();
+
+                    lista.replaceChildren();
+                    document.getElementById('aplicar_convenio').value = (convenioAplicado && convenio) ? '1' : '0';
+
+                    function mensaje(texto) {
+                        const d = document.createElement('div');
+                        d.className = 'text-muted';
+                        d.textContent = texto;
+                        lista.appendChild(d);
+                    }
+
+                    if (!paciente) return mensaje('Ingresa el RUT del cliente (F3) para ver sus descuentos.');
+                    if (!convenio) return mensaje('Este cliente no tiene descuentos disponibles.');
+
+                    const pct = Number(convenio.descuento_pct ?? 0);
+                    const especiales = Object.keys(convenio.coberturas ?? {}).length;
+                    const detalle = [
+                        pct > 0 ? `${pct}% de descuento general` : null,
+                        especiales > 0 ? `${especiales} producto(s) con cobertura especial` : null
+                    ].filter(Boolean).join(' · ') || 'Convenio sin descuentos configurados';
+
+                    const fila = document.createElement('div');
+                    fila.className = 'd-flex align-items-center gap-2 p-2 rounded border' + (convenioAplicado ? ' border-success' : '');
+
+                    const info = document.createElement('div');
+                    info.className = 'flex-grow-1';
+                    const nombre = document.createElement('div');
+                    nombre.className = 'fw-semibold';
+                    nombre.textContent = convenio.nombre;
+                    const sub = document.createElement('div');
+                    sub.className = 'text-muted';
+                    sub.textContent = detalle;
+                    info.append(nombre, sub);
+
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-sm ' + (convenioAplicado ? 'btn-outline-danger' : 'btn-success');
+                    btn.textContent = convenioAplicado ? 'Quitar' : 'Aplicar';
+                    btn.addEventListener('click', toggleConvenio);
+
+                    fila.append(info, btn);
+                    lista.appendChild(fila);
                 }
 
                 function buscarPaciente() {
@@ -553,6 +681,12 @@
                     const paciente = rut ? pacientes.find(p => normalizarRut(p.rut) === rut) : null;
                     pacienteInput.value = paciente ? String(paciente.id) : '';
                     mostrarPaciente(rut ? 'No encontrado. Puedes registrar uno nuevo.' : 'Ingresa un RUT.');
+
+                    if (paciente && productoPendiente) {
+                        const id = productoPendiente;
+                        productoPendiente = null;
+                        agregarDesdeLista(id);
+                    }
                 }
 
                 document.getElementById('btn-toggle-rut').addEventListener('click', () => {
@@ -562,11 +696,8 @@
                 });
                 document.getElementById('buscar-paciente').addEventListener('click', buscarPaciente);
                 pacienteRutInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); buscarPaciente(); } });
-                pacienteRutInput.addEventListener('input', () => { pacienteInput.value = ''; mostrarPaciente('Presiona Buscar.'); });
+                pacienteRutInput.addEventListener('input', () => { pacienteResultado.textContent = 'Presiona Buscar.'; });
 
-                // ==========================================
-                // LÓGICA ESTRICTA AL AGREGAR PRODUCTO
-                // ==========================================
                 function agregarDesdeLista(prodId) {
                     const opcion = Array.from(productoSelect.options).find(o => o.value === prodId);
                     if (!opcion) return;
@@ -580,6 +711,10 @@
                     const cantidadTotal = cantidad + (existente?.cantidad ?? 0);
 
                     if (cantidadTotal > disponible) { alert('Stock insuficiente.'); return; }
+                    if (requiereReceta && !requerirPacienteRecetas()) {
+                        productoPendiente = prodId;
+                        return;
+                    }
 
                     let itemIndex = existente ? carrito.indexOf(existente) : carrito.length;
 
@@ -597,19 +732,11 @@
                         });
                     }
 
-                    // Si requiere receta, forzamos el flujo
-                    if (requiereReceta) {
-                        const recetasValidas = recetasParaProducto(prodId, opcion.dataset.tipoReceta).filter(r => r.disponible >= carrito[itemIndex].cantidad);
-
-                        if (recetasValidas.length === 1) {
-                            // Si solo hay 1 receta, se asocia sola y el producto entra al carrito sin molestar.
-                            carrito[itemIndex].receta_detalle_id = recetasValidas[0].id;
-                        } else {
-                            // Si no hay o hay muchas, se abre el modal. El producto queda en el carrito bloqueado.
-                            renderCarrito();
-                            abrirModalReceta(itemIndex);
-                            return;
-                        }
+                    if (requiereReceta && !obtenerPacienteActual()) {
+                        alert('Este producto requiere receta. Selecciona primero un paciente.');
+                        document.getElementById('wrapper-buscar-rut').classList.remove('d-none');
+                        pacienteRutInput.focus();
+                        return;
                     }
 
                     renderCarrito();
@@ -620,14 +747,33 @@
                 function procesarCodigoBarra() {
                     const codigo = searchInput.value.trim();
                     if (!codigo) return;
-                    const opcion = Array.from(productoSelect.options).find(opt => String(opt.dataset.codigoBarra || '').trim() === codigo);
+                    let opcion = Array.from(productoSelect.options).find(opt => String(opt.dataset.codigoBarra || '').trim() === codigo);
 
-                    if (!opcion) { alert(`Código ${codigo} no encontrado.`); return; }
+                    if (!opcion) {
+                        const coincidencias = Array.from(productoSelect.options).slice(1)
+                            .filter(opt => opt.dataset.nombre.toLowerCase().includes(codigo.toLowerCase()));
+                        if (coincidencias.length !== 1) {
+                            alert(coincidencias.length ? 'Hay varias coincidencias. Elige un producto de la lista.' : `Código ${codigo} no encontrado.`);
+                            return;
+                        }
+                        opcion = coincidencias[0];
+                    }
 
                     agregarDesdeLista(opcion.value);
                 }
 
+                function guardarCarrito() {
+                    try {
+                        sessionStorage.setItem('ventaCarrito', JSON.stringify({
+                            carrito,
+                            paciente_id: pacienteInput.value,
+                            convenio_aplicado: convenioAplicado
+                        }));
+                    } catch (e) {}
+                }
+
                 function renderCarrito() {
+                    guardarCarrito();
                     indiceReceta = null;
                     bloqueReceta.hidden = true;
                     carritoItems.innerHTML = '';
@@ -640,7 +786,10 @@
                         document.getElementById('cartCount').textContent = '0 ítems';
                         totalAproximado.textContent = '0';
                         totSubtotal.textContent = '$0';
-                        btnConfirmar.disabled = true;
+                        totIva.textContent = '$0';
+                        rowDescuento.classList.add('d-none');
+                        sessionStorage.removeItem('ventaCarrito');
+                        actualizarBotonConfirmar();
                         return;
                     }
 
@@ -649,6 +798,7 @@
                     document.getElementById('cartCount').textContent = `${carrito.reduce((s, i) => s + i.cantidad, 0)} ítems`;
 
                     let totalConIva = 0;
+                    let totalLista = 0;
                     let recetasValidas = true;
 
                     carrito.forEach((item, index) => {
@@ -658,12 +808,14 @@
                         const estimacion = calcularEstimacion(item.producto_id, item.precio);
                         const subtotalNeto = estimacion.precioFinal * item.cantidad;
                         totalConIva += subtotalNeto * 1.19;
+                        totalLista += item.precio * item.cantidad;
 
                         carritoItems.insertAdjacentHTML('beforeend', `
                             <div class="cart-row">
                                 <div class="ci-info">
                                     <div class="ci-name">${item.nombre}</div>
                                     <div class="ci-price">$${Math.round(item.precio).toLocaleString('es-CL')} c/u
+                                    ${estimacion.precioFinal < item.precio ? `<span class="badge bg-success">${estimacion.texto}</span>` : ''}
                                         ${item.requiere_receta ? `
                                             <button type="button" class="btn btn-sm ${recetaValida ? 'btn-success' : 'btn-warning'} py-0 px-2" style="font-size:0.7rem; border-radius:4px; font-weight:600;" onclick="abrirModalReceta(${index})">
                                                 <i class="bi bi-file-medical"></i> ${recetaValida ? 'Receta OK' : 'Asociar Receta'}
@@ -688,30 +840,55 @@
                         `);
                     });
 
-                    const subtotalNetoTotal = totalConIva / 1.19;
-                    totSubtotal.textContent = '$' + Math.round(subtotalNetoTotal).toLocaleString('es-CL');
-                    totalAproximado.textContent = Math.round(totalConIva).toLocaleString('es-CL');
+                    const total     = Math.round(totalConIva);
+                    const netoFinal = Math.round(totalConIva / 1.19);
+                    const lista     = Math.round(totalLista);
+                    const descuento = Math.max(0, lista - netoFinal);
 
-                    btnConfirmar.disabled = !recetasValidas || !selectedPaymentMethod;
+                    totSubtotal.textContent = fmt(lista);
+                    totIva.textContent = fmt(total - netoFinal);
+                    totalAproximado.textContent = total.toLocaleString('es-CL');
+
+                    const convenio = obtenerConvenioActual();
+                    rowDescuento.classList.toggle('d-none', descuento === 0);
+                    if (descuento > 0) {
+                        lblDescuento.textContent = convenio ? `Descuento (${convenio.nombre})` : 'Descuento';
+                        totDescuento.textContent = '-' + fmt(descuento);
+                    }
+
+                    actualizarBotonConfirmar();
                 }
 
-                function updateQty(index, delta) {
+                function actualizarBotonConfirmar() {
+                    let motivo = '';
+                    if (!carrito.length) motivo = 'Agrega al menos un producto.';
+                    else if (carrito.some(item => item.requiere_receta && !recetaValidaItem(item))) motivo = 'Falta asociar receta a un producto.';
+                    else if (!selectedPaymentMethod) motivo = 'Selecciona un método de pago.';
+
+                    btnConfirmar.disabled = motivo !== '';
+                    document.getElementById('hint-confirmar').textContent = motivo;
+                }
+
+                function fijarCantidad(index, valor) {
                     const item = carrito[index];
                     const opcion = Array.from(productoSelect.options).find(o => o.value === item.producto_id);
                     const max = Number(opcion.dataset.disponible);
-                    const newQty = item.cantidad + delta;
+                    const nueva = parseInt(valor, 10);
 
-                    if (newQty < 1) { removeFromCart(index); return; }
-                    if (newQty > max) { alert('Límite de stock alcanzado'); return; }
+                    if (!nueva || nueva < 1) { renderCarrito(); return; }
+                    if (nueva > max) { alert('Límite de stock alcanzado'); renderCarrito(); return; }
 
-                    item.cantidad = newQty;
-                    if (item.requiere_receta) item.receta_detalle_id = null; // Al cambiar cantidad, se invalida la receta
+                    item.cantidad = nueva;
+                    if (item.requiere_receta && !recetaValidaItem(item)) item.receta_detalle_id = null;
                     renderCarrito();
 
-                    // Si el producto requiere receta, forzamos la reasociación
-                    if (item.requiere_receta) {
-                         abrirModalReceta(index);
-                    }
+                    if (item.requiere_receta && !item.receta_detalle_id) abrirModalReceta(index);
+                }
+
+                function updateQty(index, delta) {
+                    const nueva = carrito[index].cantidad + delta;
+                    if (nueva < 1) { removeFromCart(index); return; }
+                    fijarCantidad(index, nueva);
                 }
 
                 function removeFromCart(index) {
@@ -727,12 +904,8 @@
                     renderCarrito();
                 }
 
-                // ==========================================
-                // LÓGICA ESTRICTA DEL MODAL DE RECETAS
-                // ==========================================
                 function abrirModalReceta(index) {
                     if (!requerirPacienteRecetas()) {
-                        // Si no hay paciente, se quita el producto del carrito.
                         carrito.splice(index, 1);
                         renderCarrito();
                         return;
@@ -780,12 +953,11 @@
                     item.receta_detalle_id = recetaId;
                     cerrarModalRecetas();
                     renderCarrito();
-                    // Enfocar el buscador nuevamente
                     searchInput.focus();
                 }
 
                 function cancelarReceta() {
-                    // Si el usuario cancela, quitamos el producto del carrito para no bloquear la venta.
+                    productoPendiente = null;
                     if (indiceReceta !== null) {
                         carrito.splice(indiceReceta, 1);
                         indiceReceta = null;
@@ -795,15 +967,13 @@
                     searchInput.focus();
                 }
 
-                // ==========================================
-                // FUNCIONES ORIGINALES (Panel Derecho)
-                // ==========================================
                 function requerirPacienteRecetas() {
-                    if (!obtenerPacienteActual()) {
-                        recetasMensaje.textContent = 'Selecciona primero un paciente.';
-                        pacienteRutInput.focus(); return false;
-                    }
-                    return true;
+                    if (obtenerPacienteActual()) return true;
+                    recetasMensaje.textContent = 'Selecciona primero un paciente.';
+                    alert('Selecciona primero un paciente.');
+                    document.getElementById('wrapper-buscar-rut').classList.remove('d-none');
+                    pacienteRutInput.focus();
+                    return false;
                 }
 
                 document.getElementById('btn-toggle-recetas').addEventListener('click', () => {
@@ -969,13 +1139,51 @@
                 });
 
                 document.getElementById('form-venta').addEventListener('submit', e => {
+                    if (!carrito.length || !selectedPaymentMethod) { e.preventDefault(); return; }
+
                     const pendiente = carrito.find(item => item.requiere_receta && !recetaValidaItem(item));
                     if (pendiente) {
                         e.preventDefault();
-                        // Forzamos la apertura del modal si intentan hacer submit sin recetas
                         abrirModalReceta(carrito.indexOf(pendiente));
+                        return;
                     }
+                    sessionStorage.removeItem('ventaCarrito');
+                    btnConfirmar.disabled = true;
                 });
+
+                document.getElementById('form-venta').addEventListener('keydown', e => {
+                    if (e.key === 'Enter' && e.target.tagName === 'INPUT') e.preventDefault();
+                });
+
+                (function restaurarCarrito() {
+                    let guardado = null;
+                    try { guardado = JSON.parse(sessionStorage.getItem('ventaCarrito')); } catch (e) {}
+
+                    const rechazado = @json(old('detalles', []));
+                    const origen = rechazado.length ? rechazado : (guardado?.carrito ?? []);
+
+                    origen.forEach(d => {
+                        const id = String(d.producto_id);
+                        const opcion = Array.from(productoSelect.options).find(o => o.value === id);
+                        if (!opcion) return;
+                        carrito.push({
+                            producto_id: id,
+                            nombre: opcion.dataset.nombre,
+                            cantidad: Math.min(Number(d.cantidad), Number(opcion.dataset.disponible)),
+                            precio: Number(opcion.dataset.precio),
+                            requiere_receta: opcion.dataset.requiereReceta === '1',
+                            tipo_receta: opcion.dataset.tipoReceta,
+                            receta_detalle_id: d.receta_detalle_id ?? null,
+                        });
+                    });
+
+                    if (!pacienteInput.value && guardado?.paciente_id && pacientes.some(p => String(p.id) === String(guardado.paciente_id))) {
+                        pacienteInput.value = guardado.paciente_id;
+                    }
+                    pacienteRecetas = pacienteInput.value;
+                    const convenioRechazado = @json(old('aplicar_convenio'));
+                    convenioAplicado = rechazado.length ? convenioRechazado === '1' : !!guardado?.convenio_aplicado;
+                })();
 
                 const pacienteInicial = obtenerPacienteActual();
                 pacienteRutInput.value = pacienteInicial?.rut ?? '';

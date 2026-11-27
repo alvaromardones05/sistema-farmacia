@@ -108,8 +108,9 @@ class VentaController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validarVenta($request);
+        $aplicarConvenio = $request->boolean('aplicar_convenio');
         try {
-            $venta = DB::transaction(function () use ($validated) {
+            $venta = DB::transaction(function () use ($validated, $aplicarConvenio) {
 
                 $aperturaCaja = $this->obtenerCajaAbierta(true);
 
@@ -121,6 +122,9 @@ class VentaController extends Controller
 
                 [$paciente, $convenio] =
                     $this->obtenerPacienteYConvenio($validated['paciente_id'] ?? null);
+                    if (! $aplicarConvenio) {   // NUEVO
+                        $convenio = null;
+                    }
 
                 $detallesSolicitud = collect($validated['detalles']);
 
@@ -203,18 +207,18 @@ class VentaController extends Controller
             throw $e;
 
         } catch (\Throwable $e) {
-            dd([
-                'error' => $e->getMessage(),
-                'archivo' => $e->getFile(),
-                'linea' => $e->getLine(),
-            ]);
+            report($e);
+
+            return back()
+                ->withInput()
+                ->withErrors(['venta' => 'No se pudo procesar la venta. Intenta nuevamente.']);
         }
 
         return redirect()
             ->route('ventas.show', $venta)
             ->with(
                 'success',
-                'Venta procesada y boleta generada correctamente.'
+                "Venta procesada y {$venta->tipo_documento} generada correctamente."
             );
     }
 
@@ -320,8 +324,13 @@ class VentaController extends Controller
                 );
             }
 
+            $cajaActual = $this->obtenerCajaAbierta(true);
+            if (!$cajaActual) {
+                throw ValidationException::withMessages(['venta' => 'Abre una caja para registrar el reembolso.']);
+            }
+
             MovimientoCaja::create([
-                'apertura_caja_id' => $venta->apertura_caja_id,
+                'apertura_caja_id' => $cajaActual->id,
                 'tipo' => 'reembolso',
                 'monto' => $venta->total,
                 'referencia_documento' => $venta->numero_venta,
@@ -458,7 +467,7 @@ class VentaController extends Controller
             ],
 
             'tipo_documento' => 'required|in:boleta,factura',
-            'rut_empresa' => 'required_if:tipo_documento,factura|nullable|string|max:20',
+            'rut_empresa' => ['required_if:tipo_documento,factura', 'nullable', 'string', 'max:20', 'regex:/^[0-9.]{7,10}-[0-9kK]$/'],
             'razon_social' => 'required_if:tipo_documento,factura|nullable|string|max:255',
 
             'detalles.*.producto_id' => [
@@ -494,6 +503,8 @@ class VentaController extends Controller
 
             'paciente_id.exists' =>
                 'El paciente seleccionado no existe.',
+
+            'rut_empresa.regex' => 'El RUT de la empresa no tiene un formato válido (ej: 76.543.210-K).',
 
             'detalles.*.receta_detalle_id.exists' =>
                 'El detalle de receta seleccionado no existe.',
@@ -799,6 +810,11 @@ class VentaController extends Controller
 
             $precioNormalCentavos =
                 (int) round((float) $precio->precio_neto * 100);
+                if ($precioNormalCentavos <= 0) {
+                    throw ValidationException::withMessages([
+                        'detalles' => "El precio de {$producto->nombre} no es válido.",
+                    ]);
+                }
 
             $beneficio = $this->calcularBeneficioConvenio(
                 $convenio,

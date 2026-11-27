@@ -43,6 +43,16 @@ class OrdenCompraController extends Controller
             ->orderBy('nombre')
             ->get();
 
+        $stockPorProducto = DB::table('stock')
+            ->join('lotes', 'lotes.id', '=', 'stock.lote_id')
+            ->select('lotes.producto_id', DB::raw('SUM(stock.cantidad) as total'))
+            ->groupBy('lotes.producto_id')
+            ->pluck('total', 'producto_id');
+
+        $productos->each(function ($p) use ($stockPorProducto) {
+            $p->stock_actual = (int) ($stockPorProducto[$p->id] ?? 0);
+        });
+
         return view('compras.create', compact('proveedores', 'productos'));
     }
 
@@ -56,7 +66,7 @@ class OrdenCompraController extends Controller
             'detalles' => 'required|array|min:1',
             'detalles.*.producto_id' => 'required|exists:productos,id|distinct',
             'detalles.*.cantidad_solicitada' => 'required|integer|min:1|max:100000',
-            'detalles.*.precio_unitario' => 'required|numeric|min:0|max:99999999',
+            'detalles.*.precio_unitario' => 'required|integer|min:0|max:99999999',
         ], [
             'detalles.required' => 'Debes agregar al menos un producto.',
             'detalles.min' => 'Debes agregar al menos un producto.',

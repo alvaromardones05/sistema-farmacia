@@ -44,6 +44,12 @@
 .kpi-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
 .kpi-value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; letter-spacing: -.02em; display: flex; align-items: baseline; gap: .3rem; color: var(--text); }
 .kpi-value small { font-size: .72rem; font-weight: 500; color: var(--text-soft); }
+/* 2. Evitar que los números de los KPIs cambien de ancho al actualizarse por AJAX */
+.kpi-value {
+    font-variant-numeric: tabular-nums; /* Hace que todos los números midan lo mismo */
+    white-space: nowrap;
+}
+
 
 .main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
 @media (max-width: 1100px) { .main-grid { grid-template-columns: 1fr; } }
@@ -56,6 +62,14 @@
 .chart-container { position: relative; height: 240px; padding: .5rem 0 0; }
 .chart-container.tall { height: 300px; }
 .chart-container.short { height: 220px; }
+/* 1. Evitar que el canvas de Chart.js se desborde y cause salto */
+.chart-container canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+
 
 .actions-list { display: flex; flex-direction: column; }
 .action-item { display: flex; align-items: flex-start; gap: .75rem; padding: .95rem 1.15rem; border-bottom: 1px solid var(--border); transition: background .12s; cursor: pointer; text-decoration: none; color: inherit; }
@@ -99,6 +113,14 @@ table.simple-table { width: 100%; border-collapse: collapse; }
 .alert-item.danger  { background: var(--danger-soft); color: var(--danger); border-left: 3px solid var(--danger); }
 .alert-item.warning { background: var(--warning-soft); color: var(--warning); border-left: 3px solid var(--warning); }
 .btn-link-sm { background: transparent; border: none; color: var(--primary); font-size: .78rem; font-weight: 600; cursor: pointer; padding: 0; text-decoration: none; }
+
+/* Transición suave para los números cuando cambian por AJAX */
+.kpi-value span {
+    transition: color 0.3s ease;
+}
+.kpi-value.updated span {
+    color: var(--primary) !important;
+}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -107,7 +129,6 @@ table.simple-table { width: 100%; border-collapse: collapse; }
     <header class="page-header">
         <div>
             <h1>Resumen general</h1>
-            <p class="subtitle">Última actualización: <span data-kpi="actualizado">{{ now()->format('H:i') }}</span></p>
         </div>
         <div class="header-actions">
             @role('Administrador')
@@ -385,9 +406,11 @@ table.simple-table { width: 100%; border-collapse: collapse; }
         const labelsTop = @json($topProductosLabels);
         const dataTop = @json($topProductosData);
 
-        // Si no hay ventas en el mes, mostramos un mensaje o dejamos el gráfico vacío
+        // CORRECCIÓN: Si no hay ventas, vaciamos el CONTENEDOR, no el canvas.
+        // Así el contenedor mantiene su altura de 220px y la página no salta.
         if (labelsTop.length === 0) {
-            document.getElementById('topProductsChart').outerHTML = '<div class="text-center text-muted d-flex align-items-center justify-content-center h-100" style="font-size: 0.9rem;">No hay ventas registradas este mes.</div>';
+            const container = document.getElementById('topProductsChart').parentElement;
+            container.innerHTML = '<div class="text-center text-muted d-flex align-items-center justify-content-center h-100" style="font-size: 0.9rem;">No hay ventas registradas este mes.</div>';
             return;
         }
 
@@ -451,11 +474,19 @@ table.simple-table { width: 100%; border-collapse: collapse; }
                 document.querySelectorAll('[data-kpi]').forEach(function (el) {
                     const valor = datos[el.dataset.kpi];
                     if (valor === null || valor === undefined) return;
+
+                    // CORRECCIÓN: Pequeño efecto visual en lugar de salto
+                    const contenedor = el.closest('.kpi-value');
+                    if (contenedor) {
+                        contenedor.classList.add('updated');
+                        setTimeout(() => contenedor.classList.remove('updated'), 1000);
+                    }
+
                     el.textContent = el.hasAttribute('data-money')
                         ? Number(valor).toLocaleString('es-CL', { maximumFractionDigits: 0 })
                         : valor;
                 });
-            } catch (e) { /* sin conexión: reintenta en el próximo ciclo */ }
+            } catch (e) { /* sin conexión */ }
         }
 
         setInterval(actualizarKpis, INTERVALO);

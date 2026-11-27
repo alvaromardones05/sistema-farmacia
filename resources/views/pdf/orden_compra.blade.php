@@ -48,7 +48,7 @@
         <tbody>
             @php $total = 0; @endphp
             @foreach($orden->detalles as $detalle)
-                @php 
+                @php
                     $subtotal = $detalle->cantidad_solicitada * $detalle->precio_unitario;
                     $total += $subtotal;
                 @endphp

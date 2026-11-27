@@ -86,8 +86,8 @@ class InventarioController extends Controller
 
     $stockCompleto = Stock::with([
             'producto:id,nombre,es_controlado',
-            'lote:id,numero_lote',
-            'ubicacion:id,nombre'
+            'lote:id,numero_lote,fecha_vencimiento,estado',
+            'ubicacion:id,nombre',
         ])
         ->whereHas('producto', fn($q) => $q->where('activo', true))
         ->get()
@@ -97,9 +97,11 @@ class InventarioController extends Controller
             'es_controlado' => (bool) $s->producto?->es_controlado,
             'lote_id' => $s->lote_id,
             'lote_numero' => $s->lote?->numero_lote,
+            'lote_vencimiento' => $s->lote?->fecha_vencimiento?->format('Y-m-d'),
+            'lote_estado' => $s->lote?->estado,
             'ubicacion_id' => $s->ubicacion_id,
             'ubicacion_nombre' => $s->ubicacion?->nombre,
-            'cantidad' => $s->cantidad,
+            'cantidad' => (int) $s->cantidad,
         ]);
 
     return view('inventario.index', [

@@ -1,9 +1,16 @@
 @extends('layouts.app')
 
+{{-- 1. Inyectamos los estilos al HEAD del layout --}}
+@push('styles')
+    @include('inventario._styles')
+@endpush
+
+{{-- 2. Definimos el título --}}
 @section('title', 'Inventario')
 
+{{-- 3. Abrimos la sección de contenido --}}
 @section('content')
-@include('inventario._styles')
+
 
 <div class="container-fluid px-0 inventario-modulo">
 
@@ -419,20 +426,20 @@
                                             data-producto-codigo="{{ $s->producto?->codigo_interno }}"
                                             data-producto-detalle="{{ $s->producto?->concentracion }}"
                                             data-producto-condicion="{{ $s->producto?->condicion_almacenamiento }}"
-                                            data-producto-controlado="{{ $s->producto?->es_controlado ? '1' : '0' }}"
                                             data-ubicacion-id="{{ $ubicacionActual->id }}"
                                             data-ubicacion-tipo="{{ $ubicacionActual->tipo }}"
                                             data-ubicacion-nombre="{{ $ubicacionActual->nombre }}">
                                         <i class="bi bi-arrow-left-right me-1"></i> Trasladar
                                     </button>
 
-                                    <button type="button" class="btn btn-sm btn-outline-success"
-                                            onclick="openAjuste(this)"
-                                            data-producto-id="{{ $s->producto_id }}"
-                                            data-ubicacion-id="{{ $ubicacionActual->id }}"
-                                            data-producto-nombre="{{ $s->producto?->nombre }}"
-                                            data-producto-codigo="{{ $s->producto?->codigo_interno }}">
-                                        <i class="bi bi-sliders me-1"></i> Ajustar
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openAjuste(this)"
+                                        data-producto-id="{{ $s->producto_id }}"
+                                        data-producto-nombre="{{ $s->producto?->nombre }}"
+                                        data-producto-codigo="{{ $s->producto?->codigo_interno }}"
+                                        data-ubicacion-id="{{ $ubicacionActual->id }}"
+                                        data-ubicacion-nombre="{{ $ubicacionActual->nombre }}"
+                                        data-controlado="{{ $s->producto?->es_controlado ? 1 : 0 }}">
+                                        <i class="bi bi-sliders"></i> Ajustar
                                     </button>
 
                                     <button type="button"
@@ -487,5 +494,4 @@
 @include('inventario._modal-traslado')
 @include('inventario._modal-ajuste')
 @include('inventario._modal-no-apto')
-
 @endsection

@@ -142,17 +142,17 @@
 
                 {{-- RESUMEN --}}
                 <div class="card-body py-2 info-linea border-bottom">
-                    <div class="row text-center text-md-start g-2 resumen-linea">
-                        <div class="col-4">
-                            <div class="label">Solicitado</div>
+                    <div class="d-flex flex-wrap gap-4 resumen-linea">
+                        <div>
+                            <span class="label d-block">Solicitado</span>
                             <strong>{{ $detalle->cantidad_solicitada }}</strong>
                         </div>
-                        <div class="col-4">
-                            <div class="label">Ya recibido</div>
+                        <div>
+                            <span class="label d-block">Ya recibido</span>
                             <strong>{{ $detalle->cantidad_recibida }}</strong>
                         </div>
-                        <div class="col-4">
-                            <div class="label">Pendiente</div>
+                        <div>
+                            <span class="label d-block">Pendiente</span>
                             <strong class="text-warning pendiente-original">{{ $pendiente }}</strong>
                         </div>
                     </div>
@@ -160,44 +160,50 @@
 
                 {{-- LOTES --}}
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
+                    <table class="table table-sm align-middle mb-0 tabla-lotes">
+                        <colgroup>
+                            <col style="width:15%"><col style="width:9%"><col style="width:9%"><col style="width:9%">
+                            <col style="width:14%"><col style="width:14%"><col style="width:25%"><col style="width:5%">
+                        </colgroup>
                         <thead class="table-light">
                             <tr>
-                                <th style="min-width:140px">Lote / Serie</th>
-                                <th style="min-width:100px">Recibida</th>
-                                <th style="min-width:100px">Aceptada</th>
-                                <th style="min-width:100px">Rechazada</th>
-                                <th style="min-width:140px">Fabricación</th>
-                                <th style="min-width:140px">Vencimiento</th>
-                                <th style="min-width:220px">Observación</th>
-                                <th style="width:44px"></th>
+                                <th>Lote / serie</th>
+                                <th class="text-center">Recibida</th>
+                                <th class="text-center">Aceptada</th>
+                                <th class="text-center">Rechazada</th>
+                                <th>Fabricación</th>
+                                <th>Vencimiento</th>
+                                <th>Observación</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody class="lotes-body">
                             @foreach ($lotesOld as $indice => $lote)
                                 @php
-                                    $recibida = (int) ($lote['cantidad_recibida'] ?? 0);
-                                    $rechazada = (int) ($lote['cantidad_rechazada'] ?? 0);
+                                    $recibida = max(0, (int) ($lote['cantidad_recibida'] ?? 0));
+                                    $rechazada = max(0, (int) ($lote['cantidad_rechazada'] ?? 0));
                                     $aceptada = max(0, $recibida - $rechazada);
+                                    $base = "detalles.{$detalle->id}.lotes.{$indice}";
+                                    $err = fn ($campo) => $errors->has("{$base}.{$campo}") ? 'is-invalid' : '';
                                 @endphp
-                                <tr class="lote-row">
+                                <tr class="lote-row {{ $errors->has($base . '.*') ? 'fila-error' : '' }}">
                                     <td>
-                                        <input type="text" name="detalles[{{ $detalle->id }}][lotes][{{ $indice }}][numero_lote]" class="form-control numero-lote" maxlength="100" value="{{ $lote['numero_lote'] ?? '' }}" placeholder="Ej. ABC001">
+                                        <input type="text" name="detalles[{{ $detalle->id }}][lotes][{{ $indice }}][numero_lote]" class="form-control numero-lote {{ $err('numero_lote') }}" maxlength="100" value="{{ $lote['numero_lote'] ?? '' }}" placeholder="Ej. ABC001">
                                     </td>
                                     <td>
-                                        <input type="number" name="detalles[{{ $detalle->id }}][lotes][{{ $indice }}][cantidad_recibida]" class="form-control cant-recibida" min="0" value="{{ $recibida }}">
+                                        <input type="number" name="detalles[{{ $detalle->id }}][lotes][{{ $indice }}][cantidad_recibida]" class="form-control cant-recibida {{ $err('cantidad_recibida') }}" min="0" step="1" inputmode="numeric" value="{{ $recibida ?: '' }}" placeholder="0">
                                     </td>
                                     <td>
                                         <input type="number" class="form-control cant-aceptada" value="{{ $aceptada }}" readonly tabindex="-1">
                                     </td>
                                     <td>
-                                        <input type="number" name="detalles[{{ $detalle->id }}][lotes][{{ $indice }}][cantidad_rechazada]" class="form-control cant-rechazada" min="0" value="{{ $rechazada }}">
+                                        <input type="number" name="detalles[{{ $detalle->id }}][lotes][{{ $indice }}][cantidad_rechazada]" class="form-control cant-rechazada {{ $err('cantidad_rechazada') }}" min="0" step="1" inputmode="numeric" value="{{ $rechazada ?: '' }}" placeholder="0">
                                     </td>
                                     <td>
-                                        <input type="date" name="detalles[{{ $detalle->id }}][lotes][{{ $indice }}][fecha_fabricacion]" class="form-control fecha-fabricacion" value="{{ $lote['fecha_fabricacion'] ?? '' }}">
+                                        <input type="date" name="detalles[{{ $detalle->id }}][lotes][{{ $indice }}][fecha_fabricacion]" class="form-control fecha-fabricacion {{ $err('fecha_fabricacion') }}" max="{{ now()->toDateString() }}" value="{{ $lote['fecha_fabricacion'] ?? '' }}">
                                     </td>
                                     <td>
-                                        <input type="date" name="detalles[{{ $detalle->id }}][lotes][{{ $indice }}][fecha_vencimiento]" class="form-control fecha-vencimiento" value="{{ $lote['fecha_vencimiento'] ?? '' }}">
+                                        <input type="date" name="detalles[{{ $detalle->id }}][lotes][{{ $indice }}][fecha_vencimiento]" class="form-control fecha-vencimiento {{ $err('fecha_vencimiento') }}" min="{{ now()->toDateString() }}" value="{{ $lote['fecha_vencimiento'] ?? '' }}">
                                     </td>
                                     <td>
                                         <input type="text" name="detalles[{{ $detalle->id }}][lotes][{{ $indice }}][observacion]" class="form-control observacion-lote" maxlength="1000" value="{{ $lote['observacion'] ?? '' }}" placeholder="Opcional">
@@ -215,11 +221,16 @@
 
                 {{-- PIE --}}
                 <div class="card-footer bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <button type="button" class="btn btn-sm btn-outline-primary btn-add-lote">
-                        <i class="bi bi-plus-lg me-1"></i> Agregar otro lote / serie
-                    </button>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-primary btn-add-lote">
+                            <i class="bi bi-plus-lg me-1"></i> Agregar otro lote / serie
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-completar">
+                            Recibir todo lo pendiente
+                        </button>
+                    </div>
 
-                    <div class="d-flex gap-4 resumen-linea">
+                    <div class="d-flex gap-4 resumen-linea text-end">
                         <div>
                             <span class="label d-block">Total aceptado</span>
                             <strong class="text-success total-aceptado">0</strong>
@@ -259,12 +270,20 @@
 <style>
     .producto-card .card-header { border-bottom: 1px solid #eef0f3; }
     .info-linea { background: var(--bs-tertiary-bg, #f8f9fa); }
-    .lote-row input.form-control { font-size: .875rem; padding: .35rem .5rem; }
-    .lote-row td { vertical-align: middle; }
     .resumen-linea .label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-secondary-color, #6c757d); }
-    .sticky-actions { position: sticky; bottom: 0; background: var(--bs-body-bg, #fff); border-top: 1px solid var(--bs-border-color, #e3e6eb); border-radius: .5rem; padding: 1rem 1.25rem; margin-top: 2rem; z-index: 10; }
     .badge-ubicacion { font-size: .8rem; }
+
+    .tabla-lotes { table-layout: fixed; min-width: 960px; }
+    .tabla-lotes th { font-size: .75rem; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
+    .lote-row td { vertical-align: middle; }
+    .lote-row input.form-control { font-size: .875rem; padding: .35rem .5rem; }
+    .lote-row input[type=number] { text-align: center; -moz-appearance: textfield; }
+    .lote-row input[type=number]::-webkit-outer-spin-button,
+    .lote-row input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .lote-row .cant-aceptada { background: var(--bs-tertiary-bg, #f1f3f5); font-weight: 600; }
     .fila-error { background: rgba(220, 53, 69, .04); }
+
+    .sticky-actions { position: sticky; bottom: 0; background: var(--bs-body-bg, #fff); border-top: 1px solid var(--bs-border-color, #e3e6eb); border-radius: .5rem; padding: 1rem 1.25rem; margin-top: 2rem; z-index: 10; }
 </style>
 @endpush
 
@@ -276,7 +295,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('formRecepcion');
 
     function numero(input) {
-        return Math.max(0, parseInt(input?.value || 0, 10) || 0);
+        const n = Math.floor(Number(input?.value));
+        return Number.isFinite(n) && n > 0 ? n : 0;
     }
 
     function limpiarError(input) {
@@ -290,16 +310,21 @@ document.addEventListener('DOMContentLoaded', () => {
         input.setCustomValidity(mensaje);
     }
 
+    function vaciarFila(row) {
+        row.classList.remove('fila-error');
+        row.querySelectorAll('input').forEach(input => {
+            limpiarError(input);
+            input.value = input.classList.contains('cant-aceptada') ? 0 : '';
+        });
+    }
+
     function recalcularFila(row) {
-        const recibidaInput = row.querySelector('.cant-recibida');
         const rechazadaInput = row.querySelector('.cant-rechazada');
         const aceptadaInput = row.querySelector('.cant-aceptada');
         const observacionInput = row.querySelector('.observacion-lote');
 
-        const recibida = numero(recibidaInput);
+        const recibida = numero(row.querySelector('.cant-recibida'));
         const rechazada = numero(rechazadaInput);
-
-        limpiarError(rechazadaInput);
 
         if (rechazada > recibida) {
             aceptadaInput.value = 0;
@@ -310,12 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
             row.classList.remove('fila-error');
         }
 
-        if (rechazada > 0) {
-            observacionInput.placeholder = 'Indica el motivo del rechazo';
-        } else {
-            observacionInput.placeholder = 'Opcional';
-            limpiarError(observacionInput);
-        }
+        observacionInput.placeholder = rechazada > 0 ? 'Indica el motivo del rechazo' : 'Opcional';
     }
 
     function recalcularProducto(card) {
@@ -346,15 +366,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    document.querySelectorAll('.producto-card').forEach(card => {
-        recalcularProducto(card);
+    document.querySelectorAll('.producto-card').forEach(recalcularProducto);
+
+    // Solo dígitos enteros en las cantidades (sin e, +, -, punto ni coma)
+    document.addEventListener('keydown', e => {
+        if (e.target.matches('.cant-recibida, .cant-rechazada') && ['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+            e.preventDefault();
+        }
     });
 
     document.addEventListener('input', e => {
         const row = e.target.closest('.lote-row');
         if (!row) return;
-        recalcularFila(row);
+
         const card = row.closest('.producto-card');
+
+        // Normaliza "012", "5.0" o "1e3" a un entero limpio
+        if (e.target.matches('.cant-recibida, .cant-rechazada')) {
+            const v = e.target.value;
+            if (v !== '' && !/^(0|[1-9]\d*)$/.test(v)) {
+                e.target.value = String(numero(e.target));
+            }
+        }
+
+        // Al corregir, se limpian los avisos viejos para que no bloqueen el envío
+        card.querySelectorAll('.is-invalid').forEach(limpiarError);
         recalcularProducto(card);
     });
 
@@ -362,31 +398,37 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', function () {
             const card = this.closest('.producto-card');
             const tbody = card.querySelector('.lotes-body');
-            const primeraFila = tbody.querySelector('.lote-row');
-            const clone = primeraFila.cloneNode(true);
+            const clone = tbody.querySelector('.lote-row').cloneNode(true);
             const indice = parseInt(card.dataset.nextIndex || 0, 10);
 
             card.dataset.nextIndex = indice + 1;
-            clone.classList.remove('fila-error');
 
-            clone.querySelectorAll('input').forEach(input => {
-                input.classList.remove('is-invalid');
-                input.setCustomValidity('');
-
-                if (input.name) {
-                    input.name = input.name.replace(/\[lotes\]\[\d+\]/, `[lotes][${indice}]`);
-                }
-
-                if (input.classList.contains('cant-recibida') || input.classList.contains('cant-rechazada') || input.classList.contains('cant-aceptada')) {
-                    input.value = 0;
-                } else {
-                    input.value = '';
-                }
+            clone.querySelectorAll('input[name]').forEach(input => {
+                input.name = input.name.replace(/\[lotes\]\[\d+\]/, `[lotes][${indice}]`);
             });
+            vaciarFila(clone);
 
             tbody.appendChild(clone);
             recalcularProducto(card);
             clone.querySelector('.numero-lote')?.focus();
+        });
+    });
+
+    document.querySelectorAll('.btn-completar').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const card = this.closest('.producto-card');
+            const pendiente = parseInt(card.dataset.pendiente || 0, 10);
+            const filas = card.querySelectorAll('.lote-row');
+            let enOtrasFilas = 0;
+
+            filas.forEach((row, i) => {
+                if (i > 0) enOtrasFilas += numero(row.querySelector('.cant-recibida'));
+            });
+
+            const primera = filas[0].querySelector('.cant-recibida');
+            primera.value = Math.max(0, pendiente - enOtrasFilas) || '';
+            recalcularProducto(card);
+            filas[0].querySelector('.numero-lote').focus();
         });
     });
 
@@ -395,24 +437,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!btn) return;
 
         const row = btn.closest('.lote-row');
-        const tbody = row.closest('.lotes-body');
         const card = row.closest('.producto-card');
 
-        if (tbody.querySelectorAll('.lote-row').length > 1) {
+        if (row.closest('.lotes-body').querySelectorAll('.lote-row').length > 1) {
             row.remove();
         } else {
-            row.querySelectorAll('input').forEach(input => {
-                if (input.classList.contains('cant-recibida') || input.classList.contains('cant-rechazada') || input.classList.contains('cant-aceptada')) {
-                    input.value = 0;
-                } else {
-                    input.value = '';
-                }
-                limpiarError(input);
-            });
+            vaciarFila(row);
         }
         recalcularProducto(card);
     });
 
+    // Devuelve [input, mensaje] si la fila tiene un problema, o null si está bien
     function validarFila(row) {
         const recibidaInput = row.querySelector('.cant-recibida');
         const rechazadaInput = row.querySelector('.cant-rechazada');
@@ -424,96 +459,77 @@ document.addEventListener('DOMContentLoaded', () => {
         const recibida = numero(recibidaInput);
         const rechazada = numero(rechazadaInput);
 
-        [recibidaInput, rechazadaInput, loteInput, fabricacionInput, vencimientoInput, observacionInput].forEach(limpiarError);
-
-        if (recibida === 0) return true;
-
-        if (!loteInput.value.trim()) {
-            marcarError(loteInput, 'Debes ingresar el lote o serie.');
-            loteInput.reportValidity();
-            return false;
+        if (recibida === 0) {
+            const conDatos = loteInput.value.trim() || fabricacionInput.value || vencimientoInput.value;
+            return conDatos ? [recibidaInput, 'Indica la cantidad recibida de este lote o elimina la fila.'] : null;
         }
+        if (!loteInput.value.trim()) return [loteInput, 'Debes ingresar el lote o serie.'];
+        if (rechazada > recibida) return [rechazadaInput, 'La cantidad rechazada no puede superar la recibida.'];
+        if (rechazada > 0 && !observacionInput.value.trim()) return [observacionInput, 'Debes indicar por qué se rechazaron unidades.'];
+        if (!fabricacionInput.value) return [fabricacionInput, 'Debes ingresar la fecha de fabricación.'];
+        if (!vencimientoInput.value) return [vencimientoInput, 'Debes ingresar la fecha de vencimiento.'];
+        if (vencimientoInput.value <= fabricacionInput.value) return [vencimientoInput, 'El vencimiento debe ser posterior a la fabricación.'];
 
-        if (rechazada > recibida) {
-            marcarError(rechazadaInput, 'La cantidad rechazada no puede superar la recibida.');
-            rechazadaInput.reportValidity();
-            return false;
-        }
-
-        if (rechazada > 0 && !observacionInput.value.trim()) {
-            marcarError(observacionInput, 'Debes indicar por qué se rechazaron unidades.');
-            observacionInput.reportValidity();
-            return false;
-        }
-
-        if (!fabricacionInput.value) {
-            marcarError(fabricacionInput, 'Debes ingresar la fecha de fabricación.');
-            fabricacionInput.reportValidity();
-            return false;
-        }
-
-        if (!vencimientoInput.value) {
-            marcarError(vencimientoInput, 'Debes ingresar la fecha de vencimiento.');
-            vencimientoInput.reportValidity();
-            return false;
-        }
-
-        if (vencimientoInput.value <= fabricacionInput.value) {
-            marcarError(vencimientoInput, 'El vencimiento debe ser posterior a la fabricación.');
-            vencimientoInput.reportValidity();
-            return false;
-        }
-
-        return true;
+        return null;
     }
 
     form.addEventListener('submit', e => {
+        form.querySelectorAll('.is-invalid').forEach(limpiarError);
+
+        // Deja las cantidades como enteros limpios antes de enviar
+        form.querySelectorAll('.cant-recibida, .cant-rechazada').forEach(input => {
+            input.value = input.value === '' ? '' : String(numero(input));
+        });
+
         let existeRecepcion = false;
-        let formularioValido = true;
+        let primerError = null;
+        const fallar = (input, mensaje) => {
+            marcarError(input, mensaje);
+            primerError = primerError || input;
+        };
 
         document.querySelectorAll('.producto-card').forEach(card => {
             const pendiente = parseInt(card.dataset.pendiente || 0, 10);
-            let totalRecibido = 0;
             const lotesUsados = new Set();
+            let totalRecibido = 0;
+            let ultimaConCantidad = null;
 
             card.querySelectorAll('.lote-row').forEach(row => {
-                const recibida = numero(row.querySelector('.cant-recibida'));
-                if (recibida > 0) existeRecepcion = true;
+                const problema = validarFila(row);
+                if (problema) fallar(problema[0], problema[1]);
 
+                const recibidaInput = row.querySelector('.cant-recibida');
+                const recibida = numero(recibidaInput);
+                if (recibida <= 0) return;
+
+                existeRecepcion = true;
                 totalRecibido += recibida;
+                ultimaConCantidad = recibidaInput;
 
-                if (!validarFila(row)) {
-                    formularioValido = false;
-                    return;
-                }
-
-                if (recibida > 0) {
-                    const loteInput = row.querySelector('.numero-lote');
-                    const lote = loteInput.value.trim().toUpperCase();
-
+                const loteInput = row.querySelector('.numero-lote');
+                const lote = loteInput.value.trim().toUpperCase();
+                if (lote) {
                     if (lotesUsados.has(lote)) {
-                        marcarError(loteInput, 'Este lote ya fue ingresado para el mismo producto. Agrupa sus unidades en una sola fila.');
-                        formularioValido = false;
-                    } else {
-                        lotesUsados.add(lote);
+                        fallar(loteInput, 'Este lote ya fue ingresado para el mismo producto. Agrupa sus unidades en una sola fila.');
                     }
+                    lotesUsados.add(lote);
                 }
             });
 
-            if (totalRecibido > pendiente) {
-                formularioValido = false;
-                alert('La cantidad física recibida de uno de los productos supera la cantidad pendiente de la orden.');
+            if (totalRecibido > pendiente && ultimaConCantidad) {
+                fallar(ultimaConCantidad, `Recibiste ${totalRecibido} unidades y solo hay ${pendiente} pendientes de este producto.`);
             }
         });
 
         if (!existeRecepcion) {
-            e.preventDefault();
-            alert('Debes registrar al menos un producto recibido.');
-            return;
+            fallar(document.querySelector('.cant-recibida'), 'Debes registrar al menos un producto recibido.');
         }
 
-        if (!formularioValido) {
+        if (primerError) {
             e.preventDefault();
+            primerError.scrollIntoView({ block: 'center' });
+            primerError.focus();
+            primerError.reportValidity();
         }
     });
 });
